@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, generatedDocuments, InsertGeneratedDocument } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -89,4 +89,48 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// Document generation helpers
+export async function saveGeneratedDocument(doc: InsertGeneratedDocument) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const result = await db.insert(generatedDocuments).values(doc);
+  return result;
+}
+
+export async function getUserDocuments(userId: number) {
+  const db = await getDb();
+  if (!db) {
+    return [];
+  }
+
+  const result = await db
+    .select()
+    .from(generatedDocuments)
+    .where(eq(generatedDocuments.userId, userId))
+    .orderBy(desc(generatedDocuments.createdAt));
+
+  return result;
+}
+
+export async function getDocumentById(documentId: number, userId: number) {
+  const db = await getDb();
+  if (!db) {
+    return undefined;
+  }
+
+  const result = await db
+    .select()
+    .from(generatedDocuments)
+    .where(
+      and(
+        eq(generatedDocuments.id, documentId),
+        eq(generatedDocuments.userId, userId)
+      )
+    )
+    .limit(1);
+
+  return result.length > 0 ? result[0] : undefined;
+}

@@ -25,4 +25,21 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+/**
+ * Documentos legales generados por los usuarios.
+ * Almacena el historial de documentos creados con IA.
+ */
+export const generatedDocuments = mysqlTable("generated_documents", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  templateId: varchar("templateId", { length: 64 }).notNull(),
+  templateName: varchar("templateName", { length: 255 }).notNull(),
+  formData: text("formData").notNull(), // JSON stringified
+  generatedContent: text("generatedContent").notNull(), // El contenido legal generado por IA
+  documentTitle: varchar("documentTitle", { length: 255 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type GeneratedDocument = typeof generatedDocuments.$inferSelect;
+export type InsertGeneratedDocument = typeof generatedDocuments.$inferInsert;

@@ -1,10 +1,12 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
+import { z } from "zod";
+import * as db from "./db";
+import { templates } from "../lib/templates";
 
 export const appRouter = router({
-    // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
@@ -17,12 +19,22 @@ export const appRouter = router({
     }),
   }),
 
-  // TODO: add feature routers here, e.g.
-  // todo: router({
-  //   list: protectedProcedure.query(({ ctx }) =>
-  //     db.getUserTodos(ctx.user.id)
-  //   ),
-  // }),
+  documents: router({
+    getTemplates: publicProcedure.query(() => templates),
+    getTemplateById: publicProcedure
+      .input(z.object({ id: z.string() }))
+      .query(({ input }) => {
+        return templates.find((t) => t.id === input.id);
+      }),
+    getHistory: protectedProcedure.query(({ ctx }) =>
+      db.getUserDocuments(ctx.user.id)
+    ),
+    getDocument: protectedProcedure
+      .input(z.object({ documentId: z.number() }))
+      .query(({ ctx, input }) =>
+        db.getDocumentById(input.documentId, ctx.user.id)
+      ),
+  }),
 });
 
 export type AppRouter = typeof appRouter;
