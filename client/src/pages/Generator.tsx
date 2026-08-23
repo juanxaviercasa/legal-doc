@@ -127,6 +127,7 @@ export default function Generator() {
 
   const template = templateQuery.data;
   const jurisdiction = jurisdictionQuery.data;
+  const currentJurisdiction = jurisdiction?.options.find((option) => option.id === jurisdictionId);
   const currentContent = editedContent || generatedContent || "";
 
   return (
@@ -136,7 +137,7 @@ export default function Generator() {
           <Button variant="ghost" onClick={() => navigate("/catalogo")} className="mb-5 -ml-3 text-slate-600"><ArrowLeft className="mr-2 h-4 w-4" />Volver al catálogo</Button>
           <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div><div className="mb-3 flex items-center gap-2"><span className="rounded-full bg-[#e8f0f8] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#173b67]">Perú · Jurisdicción activa</span><ShieldCheck className="h-4 w-4 text-emerald-600" /></div><h1 className="text-3xl font-semibold tracking-tight text-[#102a43] md:text-4xl">{template.title}</h1><p className="mt-2 max-w-2xl text-slate-600">{template.description}</p></div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"><span className="font-medium text-slate-900">Contexto:</span> {jurisdiction?.selectedId === "pe" ? "Marco legal peruano" : "Jurisdicción no disponible"}</div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"><span className="font-medium text-slate-900">Contexto:</span> {jurisdiction?.selectedId === "pe" ? `Marco legal peruano · ${currentJurisdiction?.locale ?? "es-PE"} · ${currentJurisdiction?.legalTerminology ?? "terminología jurídica peruana"} · ${currentJurisdiction?.documentFormat ?? "DOCX"}` : "Jurisdicción no disponible"}</div>
           </div>
         </div>
       </header>

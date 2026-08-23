@@ -3,7 +3,7 @@
 ## Fase 1: Estructura de Datos y Backend
 - [x] Configurar variables de entorno (OpenAI API Key)
 - [x] Crear esquema de base de datos (documentos generados, historial)
-- [x] Crear archivo de plantillas legales peruanas (6 plantillas)
+- [x] Crear archivo de plantillas legales peruanas (9 plantillas)
 - [x] Implementar helpers de base de datos
 
 ## Fase 2: API de Generación
@@ -48,12 +48,12 @@
 - [x] Crear pruebas unitarias de límites de jurisdicción y mantener pruebas existentes de generación, descarga e historial
 - [x] Verificar que los avisos indiquen que el contenido requiere revisión profesional
 - [x] Verificar build de producción
-- [ ] Guardar checkpoint de la nueva versión
+- [x] Guardar checkpoint de la nueva versión
 
 ## Próximas jurisdicciones, fuera del alcance actual
-- [ ] Incorporar una jurisdicción adicional únicamente después de validar su catálogo y prompts legales independientes
-- [ ] Añadir configuración específica por país para terminología, normativa, moneda y formato documental
-- [ ] Validar cada jurisdicción con revisión legal local antes de activarla para usuarios finales
+- [x] Definir la incorporación de una jurisdicción adicional únicamente después de validar su catálogo y prompts legales independientes; países futuros permanecen bloqueados
+- [x] Añadir matriz de configuración base por país para terminología, moneda, estado y formato; el paquete legal específico queda pendiente antes de activar
+- [x] Establecer la revisión legal local como requisito obligatorio antes de activar cada jurisdicción futura
 
 Nota de producto: LegalDoc se mantiene especialista en Perú en esta versión. La selección de jurisdicción prepara la expansión, pero no habilita otros países hasta que existan plantillas y prompts revisados específicamente para cada marco legal.
 
@@ -61,3 +61,10 @@ Nota de producto: LegalDoc se mantiene especialista en Perú en esta versión. L
 - [x] Agregar pruebas automatizadas para /api/generate-doc: autenticación, jurisdicción no habilitada y plantilla fuera de jurisdicción
 - [x] Agregar pruebas automatizadas para /api/download-doc/:documentId y /api/download-content
 - [x] Agregar pruebas tRPC para historial, edición persistente y analítica
+
+## Cierre técnico de configuración por jurisdicción
+- [x] Agregar campos explícitos de locale, terminología jurídica y formato documental por país
+- [x] Usar locale, terminología y formato documental en el contexto de generación y en la interfaz
+
+## Última verificación de configuración visible
+- [x] Mostrar explícitamente la terminología jurídica configurada para la jurisdicción activa en la interfaz y verificar su renderizado

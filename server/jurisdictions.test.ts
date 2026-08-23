@@ -6,6 +6,7 @@ describe("jurisdiction boundaries", () => {
   it("mantiene Perú como jurisdicción activa y predeterminada", () => {
     expect(normalizeJurisdictionId(undefined)).toBe("pe");
     expect(getJurisdictionById("pe")?.status).toBe("active");
+    expect(getJurisdictionById("pe")).toMatchObject({ locale: "es-PE", legalTerminology: "terminología jurídica peruana", documentFormat: "DOCX · Times New Roman · español" });
     expect(getTemplatesForJurisdiction("pe").length).toBeGreaterThan(6);
   });
 

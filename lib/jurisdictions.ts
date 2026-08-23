@@ -6,6 +6,11 @@ export interface Jurisdiction {
   name: string;
   currency: string;
   status: JurisdictionStatus;
+  packageStatus: "configured" | "not-started";
+  localReview: "required" | "pending";
+  locale: string;
+  legalTerminology: string;
+  documentFormat: string;
   legalDisclaimer: string;
 }
 
@@ -15,10 +20,10 @@ export const LEGAL_PRODUCT_DISCLAIMER = "LegalDoc es una herramienta de apoyo a 
 export const JURISDICTION_REVIEW_POLICY = "Cada país requiere catálogo, prompts, pruebas y revisión legal local antes de activarse.";
 
 export const jurisdictions: Jurisdiction[] = [
-  { id: "pe", countryCode: "PE", name: "Perú", currency: "PEN", status: "active", legalDisclaimer: "Contenido orientado al marco legal peruano. Requiere revisión profesional antes de su uso." },
-  { id: "mx", countryCode: "MX", name: "México", currency: "MXN", status: "coming-soon", legalDisclaimer: "México requiere un paquete legal local antes de habilitarse." },
-  { id: "co", countryCode: "CO", name: "Colombia", currency: "COP", status: "coming-soon", legalDisclaimer: "Colombia requiere un paquete legal local antes de habilitarse." },
-  { id: "cl", countryCode: "CL", name: "Chile", currency: "CLP", status: "coming-soon", legalDisclaimer: "Chile requiere un paquete legal local antes de habilitarse." },
+  { id: "pe", countryCode: "PE", name: "Perú", currency: "PEN", status: "active", packageStatus: "configured", localReview: "required", locale: "es-PE", legalTerminology: "terminología jurídica peruana", documentFormat: "DOCX · Times New Roman · español", legalDisclaimer: "Contenido orientado al marco legal peruano. Requiere revisión profesional antes de su uso." },
+  { id: "mx", countryCode: "MX", name: "México", currency: "MXN", status: "coming-soon", packageStatus: "not-started", localReview: "pending", locale: "es-MX", legalTerminology: "terminología jurídica mexicana (pendiente)", documentFormat: "DOCX · configuración local pendiente", legalDisclaimer: "México requiere un paquete legal local antes de habilitarse." },
+  { id: "co", countryCode: "CO", name: "Colombia", currency: "COP", status: "coming-soon", packageStatus: "not-started", localReview: "pending", locale: "es-CO", legalTerminology: "terminología jurídica colombiana (pendiente)", documentFormat: "DOCX · configuración local pendiente", legalDisclaimer: "Colombia requiere un paquete legal local antes de habilitarse." },
+  { id: "cl", countryCode: "CL", name: "Chile", currency: "CLP", status: "coming-soon", packageStatus: "not-started", localReview: "pending", locale: "es-CL", legalTerminology: "terminología jurídica chilena (pendiente)", documentFormat: "DOCX · configuración local pendiente", legalDisclaimer: "Chile requiere un paquete legal local antes de habilitarse." },
 ];
 
 export function getJurisdictionById(id: string) { return jurisdictions.find((item) => item.id === id); }
@@ -28,7 +33,7 @@ export function getActiveJurisdictions() { return jurisdictions.filter((item) =>
 export function getPlannedJurisdictions() { return jurisdictions.filter((item) => item.status === "coming-soon"); }
 export function getJurisdictionPromptContext(id = DEFAULT_JURISDICTION_ID) {
   const jurisdiction = getJurisdictionById(normalizeJurisdictionId(id))!;
-  return jurisdiction.id === "pe" ? `Jurisdicción obligatoria: Perú. ${PERU_LEGAL_CONTEXT} No mezcles normas, artículos ni terminología de otros países. Si existe incertidumbre, marca el contenido para revisión profesional.` : jurisdiction.legalDisclaimer;
+  return jurisdiction.id === "pe" ? `Jurisdicción obligatoria: Perú. Locale: ${jurisdiction.locale}. Terminología: ${jurisdiction.legalTerminology}. Formato de salida: ${jurisdiction.documentFormat}. ${PERU_LEGAL_CONTEXT} No mezcles normas, artículos ni terminología de otros países. Si existe incertidumbre, marca el contenido para revisión profesional.` : jurisdiction.legalDisclaimer;
 }
 export function getJurisdictionOptions() { return jurisdictions.map((item) => ({ ...item, disabled: item.status !== "active", statusLabel: item.status === "active" ? "Disponible" : "Próximamente" })); }
 export function getJurisdictionConfig(id = DEFAULT_JURISDICTION_ID) {
@@ -50,3 +55,5 @@ export function getJurisdictionCountryLabel(id: string) { const item = getJurisd
 export function getJurisdictionCurrency(id = DEFAULT_JURISDICTION_ID) { return getJurisdictionById(normalizeJurisdictionId(id))!.currency; }
 export function getJurisdictionCountry(id = DEFAULT_JURISDICTION_ID) { return getJurisdictionById(normalizeJurisdictionId(id))!.name; }
 export function getJurisdictionProductCopy() { return "Primero precisión y especialización en Perú; después expansión controlada país por país."; }
+export function getJurisdictionPackageReadiness(id = DEFAULT_JURISDICTION_ID) { const item = getJurisdictionById(normalizeJurisdictionId(id))!; return { packageStatus: item.packageStatus, localReview: item.localReview, canGenerate: item.status === "active" }; }
+export function getJurisdictionActivationChecklist(id = DEFAULT_JURISDICTION_ID) { const item = getJurisdictionById(normalizeJurisdictionId(id))!; return { country: item.name, catalog: item.packageStatus === "configured", prompts: item.packageStatus === "configured", localReview: item.localReview === "required", activation: item.status === "active" }; }
