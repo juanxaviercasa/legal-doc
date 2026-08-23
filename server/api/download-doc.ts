@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { generateDocxBuffer, sanitizeFilename } from "../../lib/docx-utils";
-import { getDocumentById } from "../db";
+import { getDocumentById, recordUsageEvent } from "../db";
 import { sdk } from "../_core/sdk";
 import type { User } from "../../drizzle/schema";
 
@@ -48,6 +48,8 @@ router.get("/download-doc/:documentId", async (req: Request, res: Response) => {
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Length", docxBuffer.length);
+    res.setHeader("X-Jurisdiction-Id", document.jurisdictionId);
+    await recordUsageEvent({ userId: user.id, jurisdictionId: document.jurisdictionId, templateId: document.templateId, eventType: "document_downloaded" });
     res.send(docxBuffer);
   } catch (error) {
     console.error("Download doc error:", error);

@@ -12,6 +12,7 @@ export interface LegalTemplate {
   title: string;
   description: string;
   category: string;
+  jurisdictionId?: string;
   formFields: FormField[];
   systemPrompt: string;
 }
@@ -522,6 +523,81 @@ INSTRUCCIONES:
 7. Devuelve ÚNICAMENTE el texto legal del acta.
 8. Asegúrate de que sea válida ante notario público.`,
   },
+  {
+    id: "contrato-trabajo",
+    title: "Contrato de Trabajo",
+    description: "Prepara un borrador de contrato laboral con información del empleador, trabajador, cargo y condiciones pactadas en Perú.",
+    category: "Laboral",
+    jurisdictionId: "pe",
+    formFields: [
+      { name: "empleador", label: "Empleador o razón social", type: "text", required: true, placeholder: "Ej: Estudio Jurídico Andino S.A.C." },
+      { name: "rucEmpleador", label: "RUC del empleador", type: "text", required: true, placeholder: "Ej: 20123456789" },
+      { name: "trabajador", label: "Nombre completo del trabajador", type: "text", required: true, placeholder: "Ej: Ana Torres Quispe" },
+      { name: "dniTrabajador", label: "DNI del trabajador", type: "text", required: true, placeholder: "Ej: 12345678" },
+      { name: "cargo", label: "Cargo y funciones principales", type: "textarea", required: true, placeholder: "Describe el cargo y sus funciones..." },
+      { name: "remuneracion", label: "Remuneración mensual (S/.)", type: "number", required: true, placeholder: "Ej: 3500" },
+      { name: "jornada", label: "Jornada y horario", type: "textarea", required: true, placeholder: "Ej: lunes a viernes, de 9:00 a 18:00..." },
+      { name: "duracion", label: "Duración del vínculo", type: "select", required: true, options: ["Indeterminado", "Plazo fijo", "Periodo de prueba"] },
+      { name: "inicio", label: "Fecha de inicio", type: "date", required: true },
+      { name: "beneficios", label: "Beneficios o condiciones adicionales", type: "textarea", required: false, placeholder: "Detalla beneficios o condiciones especiales..." },
+    ],
+    systemPrompt: `Eres un abogado especialista en derecho laboral peruano. Redacta un borrador ordenado de contrato de trabajo usando exclusivamente la información entregada y el marco laboral peruano aplicable.
+
+INSTRUCCIONES:
+1. Distingue con claridad empleador, trabajador, cargo, remuneración, jornada, duración y obligaciones.
+2. No inventes artículos, beneficios, modalidades ni hechos que no estén en los datos.
+3. Si falta una precisión normativa, utiliza una redacción prudente y marca el punto para revisión profesional.
+4. Devuelve únicamente el cuerpo contractual, sin saludos, comentarios de IA ni firmas.
+5. Indica expresamente que el borrador requiere revisión según el régimen laboral concreto aplicable.`,
+  },
+  {
+    id: "acuerdo-confidencialidad",
+    title: "Acuerdo de Confidencialidad",
+    description: "Genera un acuerdo de confidencialidad para proteger información sensible entre partes en Perú.",
+    category: "Contratos",
+    jurisdictionId: "pe",
+    formFields: [
+      { name: "parteReveladora", label: "Parte que revela la información", type: "text", required: true, placeholder: "Nombre o razón social" },
+      { name: "parteReceptora", label: "Parte receptora", type: "text", required: true, placeholder: "Nombre o razón social" },
+      { name: "identificacionPartes", label: "DNI/RUC y domicilios", type: "textarea", required: true, placeholder: "Identificación y domicilio de ambas partes..." },
+      { name: "informacionProtegida", label: "Información protegida", type: "textarea", required: true, placeholder: "Describe la información confidencial..." },
+      { name: "finalidad", label: "Finalidad de la entrega", type: "textarea", required: true, placeholder: "Indica para qué se compartirá la información..." },
+      { name: "vigencia", label: "Vigencia de la obligación", type: "select", required: true, options: ["Durante la relación", "Durante la relación y 1 año", "Durante la relación y 3 años", "Indefinida"] },
+      { name: "excepciones", label: "Excepciones acordadas", type: "textarea", required: false, placeholder: "Información pública, exigida por autoridad, etc..." },
+      { name: "consecuencias", label: "Consecuencias del incumplimiento", type: "textarea", required: true, placeholder: "Detalla las consecuencias que las partes desean pactar..." },
+    ],
+    systemPrompt: `Eres un abogado peruano especializado en contratos civiles y comerciales. Redacta un acuerdo de confidencialidad claro, equilibrado y adaptable al caso concreto, con terminología jurídica peruana.
+
+INSTRUCCIONES:
+1. Define información confidencial, finalidad, deberes de la parte receptora, excepciones, vigencia y consecuencias.
+2. No inventes datos, artículos o sanciones. Usa solo la información proporcionada.
+3. Devuelve únicamente el cuerpo del acuerdo, sin encabezados, firmas ni notas de IA.
+4. Señala dentro del texto solo cuando sea indispensable que una cláusula requiere revisión profesional.`,
+  },
+  {
+    id: "poder-especial-litigar",
+    title: "Poder Especial para Litigar",
+    description: "Prepara un borrador de poder especial para actuaciones judiciales y procesales en Perú.",
+    category: "Notarial",
+    jurisdictionId: "pe",
+    formFields: [
+      { name: "poderdante", label: "Nombre del poderdante", type: "text", required: true, placeholder: "Nombre completo o razón social" },
+      { name: "poderdanteDocumento", label: "DNI/RUC del poderdante", type: "text", required: true, placeholder: "Número de documento" },
+      { name: "poderdanteDomicilio", label: "Domicilio del poderdante", type: "textarea", required: true, placeholder: "Domicilio real o fiscal..." },
+      { name: "apoderado", label: "Nombre del apoderado", type: "text", required: true, placeholder: "Nombre completo" },
+      { name: "apoderadoDocumento", label: "DNI del apoderado", type: "text", required: true, placeholder: "Número de DNI" },
+      { name: "proceso", label: "Proceso o asunto", type: "textarea", required: true, placeholder: "Describe el proceso, expediente si existe y materia..." },
+      { name: "facultades", label: "Facultades específicas", type: "textarea", required: true, placeholder: "Detalla las facultades que se otorgan..." },
+      { name: "vigenciaPoder", label: "Vigencia", type: "select", required: true, options: ["Hasta conclusión del asunto", "1 año", "2 años", "Indefinida"] },
+    ],
+    systemPrompt: `Eres un abogado especialista en derecho procesal y notarial peruano. Redacta un borrador de poder especial para litigar conforme a la información brindada y a la práctica jurídica peruana.
+
+INSTRUCCIONES:
+1. Identifica a poderdante y apoderado, el asunto y las facultades concretas.
+2. No atribuyas facultades no solicitadas ni inventes artículos o datos de expediente.
+3. Mantén lenguaje formal y claro; devuelve únicamente el cuerpo del poder.
+4. El borrador debe quedar sujeto a revisión profesional y a la formalidad que corresponda ante notario.`,
+  },
 ];
 
 export function getTemplateById(id: string): LegalTemplate | undefined {
@@ -535,4 +611,13 @@ export function getTemplatesByCategory(category: string): LegalTemplate[] {
 export function getAllCategories(): string[] {
   const categories = new Set(templates.map((t) => t.category));
   return Array.from(categories);
+}
+
+export function getTemplatesForJurisdiction(jurisdictionId = "pe"): LegalTemplate[] {
+  if (jurisdictionId !== "pe") return [];
+  return templates.filter((template) => !template.jurisdictionId || template.jurisdictionId === jurisdictionId);
+}
+
+export function getTemplateForJurisdiction(templateId: string, jurisdictionId = "pe"): LegalTemplate | undefined {
+  return getTemplatesForJurisdiction(jurisdictionId).find((template) => template.id === templateId);
 }

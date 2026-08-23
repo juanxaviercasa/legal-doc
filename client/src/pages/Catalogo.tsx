@@ -5,14 +5,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, ArrowRight, Search } from "lucide-react";
+import { JurisdictionSelector } from "@/components/JurisdictionSelector";
 import { useState, useMemo } from "react";
 
 export default function Catalogo() {
   const [, navigate] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [jurisdictionId, setJurisdictionId] = useState("pe");
 
-  const templatesQuery = trpc.documents.getTemplates.useQuery();
+  const templatesQuery = trpc.documents.getTemplates.useQuery({ jurisdictionId });
 
   const categories = useMemo(() => {
     if (!templatesQuery.data) return [];
@@ -32,7 +34,7 @@ export default function Catalogo() {
   }, [templatesQuery.data, searchTerm, selectedCategory]);
 
   const handleNavigateToGenerator = (templateId: string) => {
-    navigate(`/generator/${templateId}`);
+    navigate(`/generator/${templateId}?jurisdiction=${jurisdictionId}`);
   };
 
   return (
@@ -59,39 +61,7 @@ export default function Catalogo() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Search and Filter */}
-        <div className="mb-8 space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
-            <Input
-              placeholder="Buscar documentos..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 py-2 border-slate-300"
-            />
-          </div>
-
-          {/* Category Filter */}
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant={selectedCategory === null ? "default" : "outline"}
-              onClick={() => setSelectedCategory(null)}
-              className={selectedCategory === null ? "bg-blue-600" : ""}
-            >
-              Todos
-            </Button>
-            {categories.map((category) => (
-              <Button
-                key={category}
-                variant={selectedCategory === category ? "default" : "outline"}
-                onClick={() => setSelectedCategory(category)}
-                className={selectedCategory === category ? "bg-blue-600" : ""}
-              >
-                {category}
-              </Button>
-            ))}
-          </div>
-        </div>
+        <div className="mb-8 grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]"><div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><JurisdictionSelector value={jurisdictionId} onChange={setJurisdictionId} /></div><div className="space-y-4"><div className="relative"><Search className="absolute left-3 top-3 w-5 h-5 text-slate-400" /><Input placeholder="Buscar documentos..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 py-2 border-slate-300" /></div><div className="flex flex-wrap gap-2"><Button variant={selectedCategory === null ? "default" : "outline"} onClick={() => setSelectedCategory(null)} className={selectedCategory === null ? "bg-blue-600" : ""}>Todos</Button>{categories.map((category) => <Button key={category} variant={selectedCategory === category ? "default" : "outline"} onClick={() => setSelectedCategory(category)} className={selectedCategory === category ? "bg-blue-600" : ""}>{category}</Button>)}</div></div></div>
 
         {/* Templates Grid */}
         {templatesQuery.isLoading ? (

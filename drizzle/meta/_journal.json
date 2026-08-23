@@ -15,6 +15,13 @@
       "when": 1785571375210,
       "tag": "0001_melted_tomas",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1787527498973,
+      "tag": "0002_tranquil_shadowcat",
+      "breakpoints": true
     }
   ]
 }

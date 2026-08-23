@@ -1,8 +1,9 @@
 import { Router, Request, Response } from "express";
 import { OpenAI } from "openai";
-import { getTemplateById } from "../../lib/templates";
+import { getTemplateForJurisdiction } from "../../lib/templates";
+import { getJurisdictionGenerationGuardrail, normalizeJurisdictionId } from "../../lib/jurisdictions";
 import { generateDocxBuffer, sanitizeFilename } from "../../lib/docx-utils";
-import { saveGeneratedDocument } from "../db";
+import { recordUsageEvent, saveGeneratedDocument } from "../db";
 import { sdk } from "../_core/sdk";
 import type { User } from "../../drizzle/schema";
 
@@ -10,6 +11,7 @@ const router = Router();
 
 interface GenerateDocRequest {
   templateId: string;
+  jurisdictionId?: string;
   formData: Record<string, string | number | boolean>;
 }
 
@@ -28,11 +30,18 @@ router.post("/generate-doc", async (req: Request, res: Response) => {
     }
 
     const { templateId, formData } = req.body as GenerateDocRequest;
+    const jurisdictionId = normalizeJurisdictionId((req.body as GenerateDocRequest).jurisdictionId);
 
-    // Validate template exists
-    const template = getTemplateById(templateId);
+    let jurisdictionPrompt: string;
+    try {
+      jurisdictionPrompt = getJurisdictionGenerationGuardrail(jurisdictionId);
+    } catch {
+      return res.status(400).json({ error: "La jurisdicción seleccionada todavía no está habilitada" });
+    }
+
+    const template = getTemplateForJurisdiction(templateId, jurisdictionId);
     if (!template) {
-      return res.status(400).json({ error: "Template not found" });
+      return res.status(400).json({ error: "La plantilla no pertenece a la jurisdicción seleccionada" });
     }
 
     // Validate form data
@@ -64,7 +73,7 @@ router.post("/generate-doc", async (req: Request, res: Response) => {
         messages: [
           {
             role: "system",
-            content: template.systemPrompt,
+            content: `${jurisdictionPrompt}\n\n${template.systemPrompt}`,
           },
           {
             role: "user",
@@ -103,14 +112,18 @@ router.post("/generate-doc", async (req: Request, res: Response) => {
 
     // Save to database
     try {
-      await saveGeneratedDocument({
+      const saved = await saveGeneratedDocument({
         userId: user.id,
+        jurisdictionId,
         templateId: template.id,
         templateName: template.title,
         formData: JSON.stringify(formData),
-        generatedContent: generatedContent,
+        generatedContent,
         documentTitle: `${template.title} - ${new Date().toLocaleDateString("es-PE")}`,
       });
+      const documentId = Number((saved as { insertId?: number }).insertId ?? 0);
+      await recordUsageEvent({ userId: user.id, jurisdictionId, templateId: template.id, eventType: "document_generated" });
+      (req as Request & { generatedDocumentId?: number }).generatedDocumentId = documentId;
     } catch (dbError) {
       console.error("Database save error:", dbError);
       // Don't fail the request if we can't save to DB, but log it
@@ -121,6 +134,9 @@ router.post("/generate-doc", async (req: Request, res: Response) => {
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Length", docxBuffer.length);
+    const documentId = (req as Request & { generatedDocumentId?: number }).generatedDocumentId;
+    if (documentId) res.setHeader("X-Document-Id", String(documentId));
+    res.setHeader("X-Jurisdiction-Id", jurisdictionId);
     res.setHeader("X-Generated-Content", Buffer.from(generatedContent).toString("base64"));
     res.send(docxBuffer);
   } catch (error) {

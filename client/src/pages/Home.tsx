@@ -5,19 +5,22 @@ import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { FileText, Zap, Shield, Clock, ArrowRight, LogOut } from "lucide-react";
+import { useState } from "react";
+import { JurisdictionSelector } from "@/components/JurisdictionSelector";
 import { startLogin } from "@/const";
 
 export default function Home() {
   const { user, isAuthenticated, logout } = useAuth();
   const [, navigate] = useLocation();
-  const templatesQuery = trpc.documents.getTemplates.useQuery();
+  const [jurisdictionId, setJurisdictionId] = useState("pe");
+  const templatesQuery = trpc.documents.getTemplates.useQuery({ jurisdictionId });
 
   const handleLogout = async () => {
     await logout();
   };
 
   const handleNavigateToGenerator = (templateId: string) => {
-    navigate(`/generator/${templateId}`);
+    navigate(`/generator/${templateId}?jurisdiction=${jurisdictionId}`);
   };
 
   return (
@@ -30,6 +33,7 @@ export default function Home() {
             <span className="text-xl font-bold text-slate-900">LegalDoc</span>
           </div>
           <div className="flex items-center gap-4">
+            <div className="hidden lg:block"><JurisdictionSelector value={jurisdictionId} onChange={setJurisdictionId} compact /></div>
             {isAuthenticated && user ? (
               <>
                 <span className="text-sm text-slate-600">Bienvenido, {user.name}</span>
@@ -96,6 +100,8 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:hidden"><div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><JurisdictionSelector value={jurisdictionId} onChange={setJurisdictionId} /></div></section>
 
       {/* Features Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -238,7 +244,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <p>&copy; 2026 LegalDoc. Generador de Documentos Legales para Abogados Peruanos.</p>
           <p className="text-sm text-slate-500 mt-2">
-            Todos los documentos generados cumplen con la legislación peruana vigente.
+            Los borradores se generan con contexto peruano y requieren revisión profesional antes de su uso.
           </p>
         </div>
       </footer>

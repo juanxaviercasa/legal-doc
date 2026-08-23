@@ -32,7 +32,9 @@ export type InsertUser = typeof users.$inferInsert;
 export const generatedDocuments = mysqlTable("generated_documents", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
+  jurisdictionId: varchar("jurisdictionId", { length: 32 }).default("pe").notNull(),
   templateId: varchar("templateId", { length: 64 }).notNull(),
+  
   templateName: varchar("templateName", { length: 255 }).notNull(),
   formData: text("formData").notNull(), // JSON stringified
   generatedContent: text("generatedContent").notNull(), // El contenido legal generado por IA
@@ -43,3 +45,16 @@ export const generatedDocuments = mysqlTable("generated_documents", {
 
 export type GeneratedDocument = typeof generatedDocuments.$inferSelect;
 export type InsertGeneratedDocument = typeof generatedDocuments.$inferInsert;
+
+/** Métricas agregadas de uso para orientar la evolución del producto. */
+export const usageEvents = mysqlTable("usage_events", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId"),
+  jurisdictionId: varchar("jurisdictionId", { length: 32 }).default("pe").notNull(),
+  templateId: varchar("templateId", { length: 64 }),
+  eventType: varchar("eventType", { length: 64 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type UsageEvent = typeof usageEvents.$inferSelect;
+export type InsertUsageEvent = typeof usageEvents.$inferInsert;

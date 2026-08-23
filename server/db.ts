@@ -1,6 +1,6 @@
 import { eq, desc, and } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, generatedDocuments, InsertGeneratedDocument } from "../drizzle/schema";
+import { InsertUser, users, generatedDocuments, InsertGeneratedDocument, usageEvents, InsertUsageEvent } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -117,20 +117,58 @@ export async function getUserDocuments(userId: number) {
 
 export async function getDocumentById(documentId: number, userId: number) {
   const db = await getDb();
-  if (!db) {
-    return undefined;
-  }
+  if (!db) return undefined;
 
   const result = await db
     .select()
     .from(generatedDocuments)
-    .where(
-      and(
-        eq(generatedDocuments.id, documentId),
-        eq(generatedDocuments.userId, userId)
-      )
-    )
+    .where(and(eq(generatedDocuments.id, documentId), eq(generatedDocuments.userId, userId)))
     .limit(1);
 
   return result.length > 0 ? result[0] : undefined;
+}
+
+export async function updateGeneratedDocumentContent(documentId: number, userId: number, generatedContent: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db
+    .update(generatedDocuments)
+    .set({ generatedContent, updatedAt: new Date() })
+    .where(and(eq(generatedDocuments.id, documentId), eq(generatedDocuments.userId, userId)));
+
+  return getDocumentById(documentId, userId);
+}
+
+export async function recordUsageEvent(event: InsertUsageEvent) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(usageEvents).values(event);
+}
+
+export async function getUserUsageEvents(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(usageEvents).where(eq(usageEvents.userId, userId)).orderBy(desc(usageEvents.createdAt));
+}
+
+export async function getUserUsageSummary(userId: number) {
+  const [documents, events] = await Promise.all([getUserDocuments(userId), getUserUsageEvents(userId)]);
+  const byType = events.reduce<Record<string, number>>((summary, event) => {
+    summary[event.eventType] = (summary[event.eventType] ?? 0) + 1;
+    return summary;
+  }, {});
+  const byTemplate = events.reduce<Record<string, number>>((summary, event) => {
+    if (event.templateId) summary[event.templateId] = (summary[event.templateId] ?? 0) + 1;
+    return summary;
+  }, {});
+  return {
+    documentsGenerated: documents.length,
+    downloads: byType.document_downloaded ?? 0,
+    edits: byType.document_edited ?? 0,
+    regenerations: byType.document_regenerated ?? 0,
+    byType,
+    byTemplate,
+    byJurisdiction: { pe: events.filter((event) => event.jurisdictionId === "pe").length },
+  };
 }

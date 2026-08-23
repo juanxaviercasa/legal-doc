@@ -10,6 +10,7 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import generateDocRouter from "../api/generate-doc";
 import downloadDocRouter from "../api/download-doc";
+import downloadContentRouter from "../api/download-content";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -41,6 +42,7 @@ async function startServer() {
   // Document generation and download APIs
   app.use("/api", generateDocRouter);
   app.use("/api", downloadDocRouter);
+  app.use("/api", downloadContentRouter);
   // tRPC API
   app.use(
     "/api/trpc",
