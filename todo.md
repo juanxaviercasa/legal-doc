@@ -1,7 +1,7 @@
 # Generador de Documentos Legales - TODO
 
 ## Publicación de código autorizada
-- [ ] Verificar y publicar el estado validado actual en el repositorio GitHub juanxaviercasa/legal-doc
+- [x] Verificar y publicar el estado validado actual en el repositorio GitHub juanxaviercasa/legal-doc
 
 ## Fase 1: Estructura de Datos y Backend
 - [x] Configurar variables de entorno (OpenAI API Key)
