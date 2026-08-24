@@ -115,3 +115,27 @@ Nota de producto: LegalDoc se mantiene especialista en Perú en esta versión. L
 - [x] Crear inventario priorizado de Constitución, códigos, leyes y normas requeridas por las plantillas activas
 - [x] Diseñar detección gratuita de cambios desde publicaciones públicas sin depender de APIs de pago
 - [x] Implementar revisión humana obligatoria antes de promover una actualización al corpus activo
+
+## Auditoría estratégica de producto para abogados
+- [x] Investigar intenciones de búsqueda, tendencias y principales dolores de abogados en Perú y mercados comparables
+- [x] Realizar benchmark de plataformas jurídicas comparables, propuesta de valor, señales de adopción y prácticas transferibles
+- [x] Auditar las capacidades actuales de LegalDoc frente al ciclo completo de trabajo jurídico
+- [x] Definir propuesta de valor, segmentos prioritarios y problemas de alto impacto a resolver
+- [x] Diseñar una hoja de ruta priorizada de funcionalidades, diferenciación y métricas de producto
+- [x] Verificar y persistir el documento estratégico con propuesta de valor, segmentos y dolores prioritarios
+- [x] Verificar y persistir la hoja de ruta con fases, diferenciadores y métricas de producto
+
+## Evolución operativa: Asuntos → Mesa procesal → Investigación jurídica
+- [x] Definir modelo de Asunto con cliente, partes, hechos, estado, responsables y control de propiedad
+- [x] Implementar persistencia, permisos y operaciones CRUD de Asuntos
+- [x] Conectar documentos existentes a un Asunto sin romper el historial actual
+- [x] Implementar tareas, cronología y notas de decisión por Asunto
+- [x] Construir índice y detalle responsive de Asuntos para el espacio privado
+- [x] Añadir responsables o asignados reales al modelo de Asuntos y exponerlos con permisos seguros
+- [x] Implementar archivado seguro de Asuntos con validación de propiedad, interfaz y pruebas
+- [ ] Añadir agenda procesal con eventos, audiencias, vencimientos y fuente de fecha
+- [ ] Implementar expediente, cronología procesal y alertas de próxima acción sin automatización no autorizada
+- [ ] Crear experiencia de Mesa procesal con calendario, filtros y confirmación de fechas
+- [ ] Exponer búsqueda de normas aprobadas por texto, materia, identificador, vigencia y fuente
+- [ ] Vincular resultados de investigación y citas a Asuntos y documentos
+- [ ] Validar TypeScript, pruebas, build y experiencia responsive por cada hito

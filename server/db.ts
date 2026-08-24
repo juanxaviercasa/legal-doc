@@ -6,6 +6,10 @@ import {
   InsertLegalChangeCandidate,
   InsertLegalInstrument,
   InsertLegalSource,
+  InsertLegalMatter,
+  InsertMatterParty,
+  InsertMatterTask,
+  InsertMatterTimelineEvent,
   InsertUser,
   InsertUsageEvent,
   generatedDocuments,
@@ -13,7 +17,12 @@ import {
   legalCitations,
   legalInstrumentVersions,
   legalInstruments,
+  legalMatters,
   legalSources,
+  matterAssignments,
+  matterParties,
+  matterTasks,
+  matterTimelineEvents,
   usageEvents,
   users,
 } from "../drizzle/schema";
@@ -154,6 +163,163 @@ export async function updateGeneratedDocumentContent(documentId: number, userId:
     .where(and(eq(generatedDocuments.id, documentId), eq(generatedDocuments.userId, userId)));
 
   return getDocumentById(documentId, userId);
+}
+
+type MatterUpdate = Partial<Pick<InsertLegalMatter, "title" | "referenceCode" | "matterType" | "clientName" | "clientEmail" | "clientPhone" | "description" | "facts" | "objective" | "nextAction" | "status" | "priority" | "closedAt">>;
+
+export async function getUserMatters(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const [matters, assignments] = await Promise.all([
+    db.select().from(legalMatters).orderBy(desc(legalMatters.updatedAt)),
+    db.select().from(matterAssignments).where(eq(matterAssignments.userId, userId)),
+  ]);
+  const assignedMatterIds = new Set(assignments.map((assignment) => assignment.matterId));
+  return matters.filter((matter) => matter.ownerUserId === userId || assignedMatterIds.has(matter.id));
+}
+
+export async function getMatterAccess(matterId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const matter = (await db.select().from(legalMatters).where(eq(legalMatters.id, matterId)).limit(1))[0];
+  if (!matter) return undefined;
+  if (matter.ownerUserId === userId) return { matter, role: "owner" as const };
+  const assignment = (await db.select().from(matterAssignments).where(and(eq(matterAssignments.matterId, matterId), eq(matterAssignments.userId, userId))).limit(1))[0];
+  return assignment ? { matter, role: assignment.role } : undefined;
+}
+
+export async function getMatterById(matterId: number, userId: number) {
+  return (await getMatterAccess(matterId, userId))?.matter;
+}
+
+async function ensureMatterEditor(matterId: number, userId: number) {
+  const access = await getMatterAccess(matterId, userId);
+  if (!access || access.role === "viewer") throw new Error("No tienes permiso para editar este asunto");
+  return access;
+}
+
+async function ensureMatterOwner(matterId: number, userId: number) {
+  const access = await getMatterAccess(matterId, userId);
+  if (!access || access.role !== "owner") throw new Error("Solo el propietario puede administrar responsables o archivar este asunto");
+  return access;
+}
+
+export async function getMatterWorkspace(matterId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const matter = await getMatterById(matterId, userId);
+  if (!matter) return undefined;
+  const [parties, tasks, timeline, documents, assignments] = await Promise.all([
+    db.select().from(matterParties).where(eq(matterParties.matterId, matterId)).orderBy(desc(matterParties.createdAt)),
+    db.select().from(matterTasks).where(eq(matterTasks.matterId, matterId)).orderBy(desc(matterTasks.createdAt)),
+    db.select().from(matterTimelineEvents).where(eq(matterTimelineEvents.matterId, matterId)).orderBy(desc(matterTimelineEvents.occurredAt)),
+    db.select().from(generatedDocuments).where(eq(generatedDocuments.matterId, matterId)).orderBy(desc(generatedDocuments.updatedAt)),
+    db.select().from(matterAssignments).where(eq(matterAssignments.matterId, matterId)),
+  ]);
+  const assigneeIds = Array.from(new Set([matter.ownerUserId, ...assignments.map((assignment) => assignment.userId)]));
+  const assigneeResults = await Promise.all(assigneeIds.map((id) => db.select().from(users).where(eq(users.id, id)).limit(1)));
+  const assignees = assigneeResults.flatMap((result) => result);
+  return { matter, parties, tasks, timeline, documents, assignments, assignees };
+}
+
+export async function createMatter(input: Omit<InsertLegalMatter, "id" | "createdAt" | "updatedAt" | "openedAt">) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(legalMatters).values(input);
+  const matterId = Number(result[0].insertId);
+  await db.insert(matterAssignments).values({ matterId, userId: input.ownerUserId, role: "owner", assignedByUserId: input.ownerUserId });
+  await db.insert(matterTimelineEvents).values({ matterId, createdByUserId: input.ownerUserId, eventType: "matter_created", title: "Asunto creado" });
+  return getMatterById(matterId, input.ownerUserId);
+}
+
+export async function updateMatter(matterId: number, userId: number, input: MatterUpdate) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await ensureMatterEditor(matterId, userId);
+  await db.update(legalMatters).set({ ...input, updatedAt: new Date() }).where(eq(legalMatters.id, matterId));
+  return getMatterById(matterId, userId);
+}
+
+export async function createMatterParty(input: Omit<InsertMatterParty, "id" | "createdAt" | "updatedAt">, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await ensureMatterEditor(input.matterId, userId);
+  const result = await db.insert(matterParties).values(input);
+  return Number(result[0].insertId);
+}
+
+export async function createMatterTask(input: Omit<InsertMatterTask, "id" | "createdAt" | "updatedAt" | "completedAt">, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await ensureMatterEditor(input.matterId, userId);
+  const result = await db.insert(matterTasks).values(input);
+  const taskId = Number(result[0].insertId);
+  await db.insert(matterTimelineEvents).values({ matterId: input.matterId, createdByUserId: userId, eventType: "task_created", title: `Tarea creada: ${input.title}` });
+  return (await db.select().from(matterTasks).where(eq(matterTasks.id, taskId)).limit(1))[0];
+}
+
+export async function updateMatterTask(input: { taskId: number; userId: number; status?: "open" | "in_progress" | "done" | "cancelled"; title?: string; description?: string | null; dueAt?: Date | null; priority?: "low" | "normal" | "high" | "urgent" }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const task = (await db.select().from(matterTasks).where(eq(matterTasks.id, input.taskId)).limit(1))[0];
+  if (!task) throw new Error("Tarea no encontrada");
+  await ensureMatterEditor(task.matterId, input.userId);
+  const completedAt = input.status ? (input.status === "done" ? new Date() : null) : undefined;
+  const { taskId, userId, ...changes } = input;
+  await db.update(matterTasks).set({ ...changes, completedAt, updatedAt: new Date() }).where(eq(matterTasks.id, taskId));
+  if (input.status === "done" && task.status !== "done") {
+    await db.insert(matterTimelineEvents).values({ matterId: task.matterId, createdByUserId: input.userId, eventType: "task_completed", title: `Tarea completada: ${input.title ?? task.title}` });
+  }
+  return (await db.select().from(matterTasks).where(eq(matterTasks.id, input.taskId)).limit(1))[0];
+}
+
+export async function addMatterNote(input: Omit<InsertMatterTimelineEvent, "id" | "createdAt" | "eventType" | "occurredAt"> & { occurredAt?: Date }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  if (!input.createdByUserId) throw new Error("Usuario no identificado");
+  await ensureMatterEditor(input.matterId, input.createdByUserId);
+  const result = await db.insert(matterTimelineEvents).values({ ...input, eventType: "note", occurredAt: input.occurredAt ?? new Date() });
+  return Number(result[0].insertId);
+}
+
+export async function linkDocumentToMatter(documentId: number, matterId: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const document = await getDocumentById(documentId, userId);
+  if (!document) throw new Error("Documento no encontrado");
+  await ensureMatterEditor(matterId, userId);
+  await db.update(generatedDocuments).set({ matterId, updatedAt: new Date() }).where(and(eq(generatedDocuments.id, documentId), eq(generatedDocuments.userId, userId)));
+  await db.insert(matterTimelineEvents).values({ matterId, createdByUserId: userId, eventType: "document_linked", title: `Documento vinculado: ${document.documentTitle}` });
+  return getDocumentById(documentId, userId);
+}
+
+export async function addMatterAssignee(input: { matterId: number; assigneeEmail: string; role: "editor" | "viewer"; ownerUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await ensureMatterOwner(input.matterId, input.ownerUserId);
+  const assignee = (await db.select().from(users).where(eq(users.email, input.assigneeEmail)).limit(1))[0];
+  if (!assignee) throw new Error("La persona debe haber iniciado sesión en LegalDoc con ese correo antes de poder asignarla");
+  if (assignee.id === input.ownerUserId) throw new Error("El propietario ya tiene acceso al asunto");
+  await db.insert(matterAssignments).values({ matterId: input.matterId, userId: assignee.id, role: input.role, assignedByUserId: input.ownerUserId }).onDuplicateKeyUpdate({ set: { role: input.role, assignedByUserId: input.ownerUserId } });
+  return assignee;
+}
+
+export async function removeMatterAssignee(input: { matterId: number; assigneeUserId: number; ownerUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const access = await ensureMatterOwner(input.matterId, input.ownerUserId);
+  if (access.matter.ownerUserId === input.assigneeUserId) throw new Error("No se puede retirar al propietario del asunto");
+  await db.delete(matterAssignments).where(and(eq(matterAssignments.matterId, input.matterId), eq(matterAssignments.userId, input.assigneeUserId)));
+  return { success: true };
+}
+
+export async function archiveMatter(matterId: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await ensureMatterOwner(matterId, userId);
+  await db.update(legalMatters).set({ status: "closed", closedAt: new Date(), updatedAt: new Date() }).where(eq(legalMatters.id, matterId));
+  await db.insert(matterTimelineEvents).values({ matterId, createdByUserId: userId, eventType: "note", title: "Asunto archivado", content: "El propietario archivó este asunto. El historial se conserva sin eliminación destructiva." });
+  return getMatterById(matterId, userId);
 }
 
 export async function recordUsageEvent(event: InsertUsageEvent) {

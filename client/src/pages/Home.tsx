@@ -46,6 +46,7 @@ export default function Home() {
             <button type="button" onClick={() => navigate("/catalogo")} className="legal-nav-link">Catálogo</button>
             <button type="button" onClick={scrollToWorkflow} className="legal-nav-link">Cómo funciona</button>
             <button type="button" onClick={() => navigate("/biblioteca")} className="legal-nav-link">Biblioteca</button>
+            {isAuthenticated && <button type="button" onClick={() => navigate("/asuntos")} className="legal-nav-link">Asuntos</button>}
             {isAuthenticated && <button type="button" onClick={() => navigate("/history")} className="legal-nav-link">Mi espacio</button>}
           </nav>
           <div className="flex items-center gap-2 sm:gap-3">

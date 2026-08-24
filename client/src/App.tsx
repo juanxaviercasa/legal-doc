@@ -10,6 +10,8 @@ import Generator from "./pages/Generator";
 import History from "./pages/History";
 import LegalLibrary from "./pages/LegalLibrary";
 import HistoryOfAdvocacy from "./pages/HistoryOfAdvocacy";
+import Matters from "./pages/Matters";
+import MatterDetail from "./pages/MatterDetail";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -19,6 +21,8 @@ function Router() {
       <Route path={"/catalogo"} component={Catalogo} />
       <Route path={"/generator/:id"} component={Generator} />
       <Route path={"/history"} component={History} />
+      <Route path={"/asuntos"} component={Matters} />
+      <Route path={"/asuntos/:id"}>{(params) => <MatterDetail matterId={Number(params.id)} />}</Route>
       <Route path={"/biblioteca-juridica"} component={LegalLibrary} />
       <Route path={"/biblioteca"} component={HistoryOfAdvocacy} />
       <Route path={"/404"} component={NotFound} />

@@ -6,6 +6,18 @@ vi.mock("./db", () => ({
   updateGeneratedDocumentContent: vi.fn(),
   recordUsageEvent: vi.fn(),
   getUserUsageSummary: vi.fn(),
+  getUserMatters: vi.fn(),
+  getMatterWorkspace: vi.fn(),
+  createMatter: vi.fn(),
+  updateMatter: vi.fn(),
+  createMatterParty: vi.fn(),
+  createMatterTask: vi.fn(),
+  updateMatterTask: vi.fn(),
+  addMatterNote: vi.fn(),
+  linkDocumentToMatter: vi.fn(),
+  addMatterAssignee: vi.fn(),
+  removeMatterAssignee: vi.fn(),
+  archiveMatter: vi.fn(),
   getApprovedLegalVersions: vi.fn(),
   getDocumentLegalCitations: vi.fn(),
   getLegalSources: vi.fn(),
@@ -59,6 +71,40 @@ describe("documents tRPC procedures", () => {
     const result = await appRouter.createCaller(ctx).documents.analytics();
     expect(result.byJurisdiction).toEqual({ pe: 3 });
     expect(result.documentsGenerated).toBe(3);
+  });
+});
+
+describe("matters tRPC procedures", () => {
+  it("devuelve únicamente los asuntos del usuario autenticado", async () => {
+    const matters = [{ id: 4, ownerUserId: 7, title: "Caso laboral", jurisdictionId: "pe", status: "active" }];
+    vi.mocked(db.getUserMatters).mockResolvedValue(matters as any);
+    const result = await appRouter.createCaller(ctx).matters.list();
+    expect(result).toEqual(matters);
+    expect(db.getUserMatters).toHaveBeenCalledWith(7);
+  });
+
+  it("crea un asunto peruano y asigna al usuario autenticado como propietario", async () => {
+    vi.mocked(db.createMatter).mockResolvedValue({ id: 9, ownerUserId: 7, title: "Contrato de arrendamiento" } as any);
+    await appRouter.createCaller(ctx).matters.create({ title: "Contrato de arrendamiento", clientName: "Cliente de prueba", status: "active", priority: "high" });
+    expect(db.createMatter).toHaveBeenCalledWith(expect.objectContaining({ ownerUserId: 7, jurisdictionId: "pe", status: "active", priority: "high" }));
+  });
+
+  it("vincula una tarea y un documento usando la identidad del propietario", async () => {
+    vi.mocked(db.createMatterTask).mockResolvedValue({ id: 8, matterId: 5, title: "Revisar anexos" } as any);
+    vi.mocked(db.linkDocumentToMatter).mockResolvedValue({ id: 6, matterId: 5 } as any);
+    await appRouter.createCaller(ctx).matters.addTask({ matterId: 5, title: "Revisar anexos", dueAt: "2026-08-30T15:00:00.000Z", priority: "normal" });
+    await appRouter.createCaller(ctx).matters.linkDocument({ matterId: 5, documentId: 6 });
+    expect(db.createMatterTask).toHaveBeenCalledWith(expect.objectContaining({ matterId: 5, dueAt: expect.any(Date), status: "open" }), 7);
+    expect(db.linkDocumentToMatter).toHaveBeenCalledWith(6, 5, 7);
+  });
+
+  it("delega responsables y archivado en helpers que verifican la propiedad", async () => {
+    vi.mocked(db.addMatterAssignee).mockResolvedValue({ id: 12, email: "colega@estudio.pe" } as any);
+    vi.mocked(db.archiveMatter).mockResolvedValue({ id: 5, status: "closed" } as any);
+    await appRouter.createCaller(ctx).matters.addAssignee({ matterId: 5, assigneeEmail: "colega@estudio.pe", role: "editor" });
+    await appRouter.createCaller(ctx).matters.archive({ matterId: 5 });
+    expect(db.addMatterAssignee).toHaveBeenCalledWith({ matterId: 5, assigneeEmail: "colega@estudio.pe", role: "editor", ownerUserId: 7 });
+    expect(db.archiveMatter).toHaveBeenCalledWith(5, 7);
   });
 });
 

@@ -1,4 +1,4 @@
-import { boolean, date, int, longtext, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { boolean, date, int, longtext, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -32,6 +32,7 @@ export type InsertUser = typeof users.$inferInsert;
 export const generatedDocuments = mysqlTable("generated_documents", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
+  matterId: int("matterId"),
   jurisdictionId: varchar("jurisdictionId", { length: 32 }).default("pe").notNull(),
   templateId: varchar("templateId", { length: 64 }).notNull(),
   
@@ -45,6 +46,95 @@ export const generatedDocuments = mysqlTable("generated_documents", {
 
 export type GeneratedDocument = typeof generatedDocuments.$inferSelect;
 export type InsertGeneratedDocument = typeof generatedDocuments.$inferInsert;
+
+/** Espacio de trabajo privado que organiza el encargo jurídico antes y después de cada documento. */
+export const legalMatters = mysqlTable("legal_matters", {
+  id: int("id").autoincrement().primaryKey(),
+  ownerUserId: int("ownerUserId").notNull(),
+  jurisdictionId: varchar("jurisdictionId", { length: 32 }).default("pe").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  referenceCode: varchar("referenceCode", { length: 64 }),
+  matterType: varchar("matterType", { length: 128 }),
+  clientName: varchar("clientName", { length: 255 }),
+  clientEmail: varchar("clientEmail", { length: 320 }),
+  clientPhone: varchar("clientPhone", { length: 64 }),
+  description: text("description"),
+  facts: longtext("facts"),
+  objective: text("objective"),
+  nextAction: varchar("nextAction", { length: 512 }),
+  status: mysqlEnum("status", ["intake", "active", "waiting_client", "on_hold", "closed"]).default("intake").notNull(),
+  priority: mysqlEnum("priority", ["low", "normal", "high", "urgent"]).default("normal").notNull(),
+  openedAt: timestamp("openedAt").defaultNow().notNull(),
+  closedAt: timestamp("closedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type LegalMatter = typeof legalMatters.$inferSelect;
+export type InsertLegalMatter = typeof legalMatters.$inferInsert;
+
+/** Integrantes con acceso a un asunto. El propietario conserva siempre el gobierno del espacio. */
+export const matterAssignments = mysqlTable("matter_assignments", {
+  id: int("id").autoincrement().primaryKey(),
+  matterId: int("matterId").notNull(),
+  userId: int("userId").notNull(),
+  role: mysqlEnum("role", ["owner", "editor", "viewer"]).default("editor").notNull(),
+  assignedByUserId: int("assignedByUserId").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [uniqueIndex("matter_assignments_matter_user_unique").on(table.matterId, table.userId)]);
+
+export type MatterAssignment = typeof matterAssignments.$inferSelect;
+export type InsertMatterAssignment = typeof matterAssignments.$inferInsert;
+
+/** Partes relacionadas con un asunto; la clasificación es descriptiva y no sustituye la calificación profesional. */
+export const matterParties = mysqlTable("matter_parties", {
+  id: int("id").autoincrement().primaryKey(),
+  matterId: int("matterId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  role: varchar("role", { length: 128 }).notNull(),
+  documentType: varchar("documentType", { length: 64 }),
+  documentNumber: varchar("documentNumber", { length: 64 }),
+  email: varchar("email", { length: 320 }),
+  phone: varchar("phone", { length: 64 }),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MatterParty = typeof matterParties.$inferSelect;
+export type InsertMatterParty = typeof matterParties.$inferInsert;
+
+/** Tareas privadas y operativas; los plazos procesales se modelarán posteriormente con sus fuentes y reglas. */
+export const matterTasks = mysqlTable("matter_tasks", {
+  id: int("id").autoincrement().primaryKey(),
+  matterId: int("matterId").notNull(),
+  title: varchar("title", { length: 512 }).notNull(),
+  description: text("description"),
+  dueAt: timestamp("dueAt"),
+  status: mysqlEnum("status", ["open", "in_progress", "done", "cancelled"]).default("open").notNull(),
+  priority: mysqlEnum("priority", ["low", "normal", "high", "urgent"]).default("normal").notNull(),
+  completedAt: timestamp("completedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MatterTask = typeof matterTasks.$inferSelect;
+export type InsertMatterTask = typeof matterTasks.$inferInsert;
+
+/** Línea de tiempo auditable de acciones y notas del asunto. */
+export const matterTimelineEvents = mysqlTable("matter_timeline_events", {
+  id: int("id").autoincrement().primaryKey(),
+  matterId: int("matterId").notNull(),
+  createdByUserId: int("createdByUserId"),
+  eventType: mysqlEnum("eventType", ["note", "task_created", "task_completed", "document_linked", "matter_created"]).notNull(),
+  title: varchar("title", { length: 512 }).notNull(),
+  content: text("content"),
+  occurredAt: timestamp("occurredAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type MatterTimelineEvent = typeof matterTimelineEvents.$inferSelect;
+export type InsertMatterTimelineEvent = typeof matterTimelineEvents.$inferInsert;
 
 /** Métricas agregadas de uso para orientar la evolución del producto. */
 export const usageEvents = mysqlTable("usage_events", {

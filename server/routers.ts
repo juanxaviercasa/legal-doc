@@ -6,6 +6,7 @@ import { adminProcedure, publicProcedure, protectedProcedure, router } from "./_
 import * as db from "./db";
 import { getTemplateForJurisdiction, getTemplatesForJurisdiction } from "../lib/templates";
 import { getJurisdictionDisplayModel, normalizeJurisdictionId } from "../lib/jurisdictions";
+import { mattersRouter } from "./routers/matters";
 
 const toPublicTemplate = (template: ReturnType<typeof getTemplatesForJurisdiction>[number]) => {
   const { systemPrompt: _systemPrompt, ...publicTemplate } = template;
@@ -44,6 +45,7 @@ export const appRouter = router({
     }),
     analytics: protectedProcedure.query(({ ctx }) => db.getUserUsageSummary(ctx.user.id)),
   }),
+  matters: mattersRouter,
   legalCorpus: router({
     approvedVersions: publicProcedure.input(z.object({ jurisdictionId: z.string().default("pe") }).optional()).query(({ input }) => db.getApprovedLegalVersions(input?.jurisdictionId ?? "pe")),
     documentCitations: protectedProcedure.input(z.object({ documentId: z.number().int().positive() })).query(async ({ ctx, input }) => {
