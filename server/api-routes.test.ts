@@ -9,12 +9,15 @@ vi.mock("./db", () => ({
   recordUsageEvent: vi.fn(),
   saveGeneratedDocument: vi.fn(),
 }));
+vi.mock("./storage", () => ({ storagePut: vi.fn() }));
 
 import { sdk } from "./_core/sdk";
 import * as db from "./db";
 import generateDocRouter from "./api/generate-doc";
 import downloadDocRouter from "./api/download-doc";
 import downloadContentRouter from "./api/download-content";
+import legalCorpusUploadRouter from "./api/legal-corpus-upload";
+import { storagePut } from "./storage";
 
 const user = { id: 7, openId: "test-user", name: "Test User", email: "test@example.com", loginMethod: "test", role: "user", createdAt: new Date(), updatedAt: new Date(), lastSignedIn: new Date() };
 const app = express();
@@ -22,12 +25,14 @@ app.use(express.json());
 app.use("/api", generateDocRouter);
 app.use("/api", downloadDocRouter);
 app.use("/api", downloadContentRouter);
+app.use("/api", legalCorpusUploadRouter);
 
 beforeEach(() => {
   vi.mocked(sdk.authenticateRequest).mockReset();
   vi.mocked(db.getDocumentById).mockReset();
   vi.mocked(db.recordUsageEvent).mockReset();
   vi.mocked(db.saveGeneratedDocument).mockReset();
+  vi.mocked(storagePut).mockReset();
 });
 
 describe("document HTTP routes", () => {
@@ -90,5 +95,31 @@ describe("document HTTP routes", () => {
     expect(response.status).toBe(200);
     expect(response.headers["content-type"]).toContain("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
     expect(Number(response.headers["content-length"])).toBeGreaterThan(100);
+  });
+
+  it("exige autenticación para conservar una fuente jurídica original", async () => {
+    vi.mocked(sdk.authenticateRequest).mockRejectedValue(new Error("missing session"));
+    const response = await request(app).post("/api/legal-corpus/upload").set("Content-Type", "text/markdown").send("# Fuente oficial");
+    expect(response.status).toBe(401);
+  });
+
+  it("bloquea cargas de corpus realizadas por usuarios sin rol administrador", async () => {
+    vi.mocked(sdk.authenticateRequest).mockResolvedValue(user as any);
+    const response = await request(app).post("/api/legal-corpus/upload").set("Content-Type", "text/markdown").send("# Fuente oficial");
+    expect(response.status).toBe(403);
+    expect(storagePut).not.toHaveBeenCalled();
+  });
+
+  it("conserva una fuente oficial cuando la carga realiza un administrador", async () => {
+    vi.mocked(sdk.authenticateRequest).mockResolvedValue({ ...user, role: "admin" } as any);
+    vi.mocked(storagePut).mockResolvedValue({ key: "legal-corpus/pe/7/codigo-civil.md", url: "/manus-storage/legal-corpus/pe/7/codigo-civil.md" });
+    const response = await request(app)
+      .post("/api/legal-corpus/upload")
+      .set("Content-Type", "text/markdown")
+      .set("X-File-Name", encodeURIComponent("Código Civil.md"))
+      .send("# Código Civil\n\nTexto oficial validado.");
+    expect(response.status).toBe(201);
+    expect(response.body.key).toContain("legal-corpus/pe/7");
+    expect(storagePut).toHaveBeenCalledWith(expect.stringContaining("Codigo-Civil.md"), expect.any(Buffer), "text/markdown");
   });
 });

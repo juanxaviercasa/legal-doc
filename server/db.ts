@@ -1,6 +1,22 @@
 import { eq, desc, and } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, generatedDocuments, InsertGeneratedDocument, usageEvents, InsertUsageEvent } from "../drizzle/schema";
+import { createHash } from "node:crypto";
+import {
+  InsertGeneratedDocument,
+  InsertLegalChangeCandidate,
+  InsertLegalInstrument,
+  InsertLegalSource,
+  InsertUser,
+  InsertUsageEvent,
+  generatedDocuments,
+  legalChangeCandidates,
+  legalCitations,
+  legalInstrumentVersions,
+  legalInstruments,
+  legalSources,
+  usageEvents,
+  users,
+} from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -171,4 +187,96 @@ export async function getUserUsageSummary(userId: number) {
     byTemplate,
     byJurisdiction: { pe: events.filter((event) => event.jurisdictionId === "pe").length },
   };
+}
+
+// Legal corpus helpers
+export async function getLegalSources(jurisdictionId = "pe") {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(legalSources).where(eq(legalSources.jurisdictionId, jurisdictionId)).orderBy(desc(legalSources.updatedAt));
+}
+
+export async function createLegalSource(source: InsertLegalSource) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(legalSources).values(source);
+  return result;
+}
+
+export async function getLegalInstruments(jurisdictionId = "pe") {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(legalInstruments).where(eq(legalInstruments.jurisdictionId, jurisdictionId)).orderBy(desc(legalInstruments.updatedAt));
+}
+
+export async function getLegalInstrumentVersions(instrumentId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(legalInstrumentVersions).where(eq(legalInstrumentVersions.instrumentId, instrumentId)).orderBy(desc(legalInstrumentVersions.versionAsOf));
+}
+
+export async function createLegalInstrument(instrument: InsertLegalInstrument) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(legalInstruments).values(instrument);
+  return result;
+}
+
+export async function createLegalInstrumentVersion(input: Omit<typeof legalInstrumentVersions.$inferInsert, "checksum">) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const checksum = createHash("sha256").update(input.contentMarkdown).digest("hex");
+  const result = await db.insert(legalInstrumentVersions).values({ ...input, checksum });
+  return result;
+}
+
+export async function approveLegalInstrumentVersion(input: { versionId: number; reviewerId: number; legalStatus: "vigente" | "modificado" | "derogado_parcial" | "derogado" | "pendiente_verificacion"; changeSummary?: string | null }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const version = (await db.select().from(legalInstrumentVersions).where(eq(legalInstrumentVersions.id, input.versionId)).limit(1))[0];
+  if (!version) throw new Error("Versión legal no encontrada");
+  await db.update(legalInstrumentVersions).set({ approvalStatus: "approved", legalStatus: input.legalStatus, reviewedByUserId: input.reviewerId, reviewedAt: new Date(), changeSummary: input.changeSummary ?? version.changeSummary }).where(eq(legalInstrumentVersions.id, input.versionId));
+  await db.update(legalInstruments).set({ status: "active", updatedAt: new Date() }).where(eq(legalInstruments.id, version.instrumentId));
+  return (await db.select().from(legalInstrumentVersions).where(eq(legalInstrumentVersions.id, input.versionId)).limit(1))[0];
+}
+
+export async function getApprovedLegalVersions(jurisdictionId = "pe") {
+  const db = await getDb();
+  if (!db) return [];
+  const instruments = await db.select().from(legalInstruments).where(and(eq(legalInstruments.jurisdictionId, jurisdictionId), eq(legalInstruments.status, "active")));
+  const instrumentIds = new Set(instruments.map((instrument) => instrument.id));
+  const versions = await db.select().from(legalInstrumentVersions).where(eq(legalInstrumentVersions.approvalStatus, "approved"));
+  return versions.filter((version) => instrumentIds.has(version.instrumentId));
+}
+
+export async function createLegalCitation(input: typeof legalCitations.$inferInsert) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.insert(legalCitations).values(input);
+}
+
+export async function getDocumentLegalCitations(generatedDocumentId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(legalCitations).where(eq(legalCitations.generatedDocumentId, generatedDocumentId)).orderBy(desc(legalCitations.createdAt));
+}
+
+export async function getLegalChangeCandidates(sourceId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  if (sourceId) return db.select().from(legalChangeCandidates).where(eq(legalChangeCandidates.sourceId, sourceId)).orderBy(desc(legalChangeCandidates.detectedAt));
+  return db.select().from(legalChangeCandidates).orderBy(desc(legalChangeCandidates.detectedAt));
+}
+
+export async function createLegalChangeCandidate(candidate: InsertLegalChangeCandidate) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.insert(legalChangeCandidates).values(candidate);
+}
+
+export async function reviewLegalChangeCandidate(input: { candidateId: number; reviewerId: number; status: "approved" | "rejected" | "ignored"; notes?: string | null }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(legalChangeCandidates).set({ status: input.status, reviewedByUserId: input.reviewerId, reviewedAt: new Date(), notes: input.notes ?? null }).where(eq(legalChangeCandidates.id, input.candidateId));
+  return (await db.select().from(legalChangeCandidates).where(eq(legalChangeCandidates.id, input.candidateId)).limit(1))[0];
 }

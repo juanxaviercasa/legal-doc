@@ -8,6 +8,8 @@ import Home from "./pages/Home";
 import Catalogo from "./pages/Catalogo";
 import Generator from "./pages/Generator";
 import History from "./pages/History";
+import LegalLibrary from "./pages/LegalLibrary";
+import HistoryOfAdvocacy from "./pages/HistoryOfAdvocacy";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -17,6 +19,8 @@ function Router() {
       <Route path={"/catalogo"} component={Catalogo} />
       <Route path={"/generator/:id"} component={Generator} />
       <Route path={"/history"} component={History} />
+      <Route path={"/biblioteca-juridica"} component={LegalLibrary} />
+      <Route path={"/biblioteca"} component={HistoryOfAdvocacy} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

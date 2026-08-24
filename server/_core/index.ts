@@ -11,6 +11,7 @@ import { serveStatic, setupVite } from "./vite";
 import generateDocRouter from "../api/generate-doc";
 import downloadDocRouter from "../api/download-doc";
 import downloadContentRouter from "../api/download-content";
+import legalCorpusUploadRouter from "../api/legal-corpus-upload";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -43,6 +44,7 @@ async function startServer() {
   app.use("/api", generateDocRouter);
   app.use("/api", downloadDocRouter);
   app.use("/api", downloadContentRouter);
+  app.use("/api", legalCorpusUploadRouter);
   // tRPC API
   app.use(
     "/api/trpc",

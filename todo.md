@@ -78,6 +78,20 @@ Nota de producto: LegalDoc se mantiene especialista en Perú en esta versión. L
 - [x] Validar diseño en escritorio y móvil sin afectar flujos de generación, descarga e historial
 - [x] Ejecutar pruebas automatizadas y build de producción después del rediseño
 
+## Biblioteca de la Abogacía y aprendizaje profesional
+- [x] Investigar una línea histórica del derecho y la abogacía con fuentes verificables
+- [x] Crear una narrativa editorial de casos, dilemas y lecciones históricas sin presentar ficción como hecho
+- [x] Diseñar ilustraciones originales para la línea de tiempo y los estudios de caso
+- [x] Implementar una página inspiradora de historia, casos y aprendizaje continuo
+- [x] Crear rutas de aprendizaje sobre razonamiento, ética, investigación y estrategia jurídica contemporánea
+- [x] Incluir fuentes, distinciones históricas y avisos claros en los contenidos educativos
+- [x] Validar la experiencia de la biblioteca en escritorio y móvil
+
+## Cierre de verificación de la Biblioteca de la Abogacía
+- [x] Verificar y documentar una fuente abierta para el bloque de Atenas clásica
+- [x] Integrar una ilustración original específica en la sección de línea de tiempo
+- [x] Validar nuevamente las referencias y la experiencia visual de la Biblioteca de la Abogacía
+
 ## Corpus legal peruano verificable
 - [ ] Definir las fuentes oficiales permitidas y la cobertura normativa inicial
 - [ ] Investigar accesos gratuitos y opciones programáticas oficiales para legislación y jurisprudencia peruana

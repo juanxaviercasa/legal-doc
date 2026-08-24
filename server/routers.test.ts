@@ -6,6 +6,18 @@ vi.mock("./db", () => ({
   updateGeneratedDocumentContent: vi.fn(),
   recordUsageEvent: vi.fn(),
   getUserUsageSummary: vi.fn(),
+  getApprovedLegalVersions: vi.fn(),
+  getDocumentLegalCitations: vi.fn(),
+  getLegalSources: vi.fn(),
+  getLegalInstruments: vi.fn(),
+  getLegalInstrumentVersions: vi.fn(),
+  getLegalChangeCandidates: vi.fn(),
+  createLegalSource: vi.fn(),
+  createLegalInstrument: vi.fn(),
+  createLegalInstrumentVersion: vi.fn(),
+  approveLegalInstrumentVersion: vi.fn(),
+  createLegalChangeCandidate: vi.fn(),
+  reviewLegalChangeCandidate: vi.fn(),
 }));
 
 import * as db from "./db";
@@ -14,6 +26,7 @@ import type { TrpcContext } from "./_core/context";
 
 const user = { id: 7, openId: "test-user", name: "Test User", email: "test@example.com", loginMethod: "test", role: "user" as const, createdAt: new Date(), updatedAt: new Date(), lastSignedIn: new Date() };
 const ctx = { user, req: {} as TrpcContext["req"], res: {} as TrpcContext["res"] } satisfies TrpcContext;
+const adminCtx = { ...ctx, user: { ...user, role: "admin" as const } } satisfies TrpcContext;
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -43,5 +56,25 @@ describe("documents tRPC procedures", () => {
     const result = await appRouter.createCaller(ctx).documents.analytics();
     expect(result.byJurisdiction).toEqual({ pe: 3 });
     expect(result.documentsGenerated).toBe(3);
+  });
+});
+
+describe("legalCorpus tRPC procedures", () => {
+  it("expone únicamente versiones aprobadas en la consulta pública", async () => {
+    const versions = [{ id: 4, instrumentId: 2, approvalStatus: "approved", sourceUrl: "https://fuente-oficial.pe/norma" }];
+    vi.mocked(db.getApprovedLegalVersions).mockResolvedValue(versions as any);
+    const result = await appRouter.createCaller(ctx).legalCorpus.approvedVersions({ jurisdictionId: "pe" });
+    expect(result).toEqual(versions);
+    expect(db.getApprovedLegalVersions).toHaveBeenCalledWith("pe");
+  });
+
+  it("impide que un usuario regular administre fuentes jurídicas", async () => {
+    await expect(appRouter.createCaller(ctx).legalCorpus.adminSources({ jurisdictionId: "pe" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("permite a un administrador registrar una fuente oficial", async () => {
+    vi.mocked(db.createLegalSource).mockResolvedValue({ insertId: 3 } as any);
+    await appRouter.createCaller(adminCtx).legalCorpus.createSource({ name: "Fuente Oficial", authority: "Entidad Pública", baseUrl: "https://www.gob.pe/", sourceType: "official_archive", updateMethod: "manual", isOfficial: true, isEnabled: true });
+    expect(db.createLegalSource).toHaveBeenCalledWith(expect.objectContaining({ jurisdictionId: "pe", name: "Fuente Oficial", isOfficial: true }));
   });
 });
