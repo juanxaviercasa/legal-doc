@@ -12,10 +12,10 @@ export function JurisdictionSelector({ value, onChange, compact = false }: Juris
   const options = query.data?.options ?? [];
 
   return <div className={compact ? "flex items-center gap-2" : "space-y-2"}>
-    {!compact && <label htmlFor="jurisdiction-selector" className="block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Jurisdicción legal</label>}
+    {!compact && <label htmlFor="jurisdiction-selector" className="legal-kicker block">Jurisdicción legal</label>}
     <div className="relative flex items-center">
-      <Globe2 className="pointer-events-none absolute left-3 h-4 w-4 text-[#173b67]" />
-      <select id="jurisdiction-selector" value={value} onChange={(event) => onChange(event.target.value)} className="h-10 w-full appearance-none rounded-lg border border-slate-300 bg-white pl-9 pr-9 text-sm font-medium text-slate-800 outline-none transition focus:border-[#173b67] focus:ring-2 focus:ring-[#173b67]/20">
+      <Globe2 className="pointer-events-none absolute left-3 h-4 w-4 text-[#8c6b35]" />
+      <select id="jurisdiction-selector" value={value} onChange={(event) => onChange(event.target.value)} className="h-10 w-full appearance-none rounded-xl border border-[#d9c9aa] bg-[#fffdf8] pl-9 pr-9 text-sm font-bold text-[#284458] outline-none transition focus:border-[#8c6b35] focus:ring-2 focus:ring-[#c59a57]/20">
         {options.map((option) => <option key={option.id} value={option.id} disabled={option.disabled}>{option.name}{option.disabled ? " · Próximamente" : " · Disponible"}</option>)}
       </select>
       <LockKeyhole className="pointer-events-none absolute right-3 h-3.5 w-3.5 text-slate-400" />

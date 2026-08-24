@@ -1,31 +1,18 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { useLocation } from "wouter";
-import { trpc } from "@/lib/trpc";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { BrandMark } from "@/components/BrandMark";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, BarChart3, Download, Eye, FileText, Loader2, RotateCcw, ShieldCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { trpc } from "@/lib/trpc";
+import { ArrowLeft, BarChart3, Download, Eye, FileText, FolderClock, Loader2, RotateCcw, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { useLocation } from "wouter";
 
-function safeFormData(value: string) {
-  try { return JSON.parse(value) as Record<string, unknown>; } catch { return {}; }
-}
-
-async function downloadBlob(response: Response, filename: string) {
-  if (!response.ok) throw new Error("No se pudo descargar el documento");
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
-}
+function safeFormData(value: string) { try { return JSON.parse(value) as Record<string, unknown>; } catch { return {}; } }
+async function downloadBlob(response: Response, filename: string) { if (!response.ok) throw new Error("No se pudo descargar el documento"); const blob = await response.blob(); const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = filename; document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url); }
 
 export default function History() {
   const { isAuthenticated } = useAuth();
@@ -35,32 +22,23 @@ export default function History() {
   const historyQuery = trpc.documents.getHistory.useQuery(undefined, { enabled: isAuthenticated });
   const analyticsQuery = trpc.documents.analytics.useQuery(undefined, { enabled: isAuthenticated });
 
-  if (!isAuthenticated) return <div className="min-h-screen bg-[#f5f7fb] flex items-center justify-center"><Card><CardContent className="p-8 text-center"><p className="mb-4 text-slate-600">Debes iniciar sesión para ver tu historial.</p><Button onClick={() => navigate("/")} className="bg-[#173b67]">Volver al inicio</Button></CardContent></Card></div>;
+  if (!isAuthenticated) return <div className="grid min-h-screen place-items-center bg-[#fbf8f1] p-5"><Card className="legal-surface max-w-md"><CardContent className="p-8 text-center"><p className="text-lg font-extrabold text-[#284458]">Tu archivo legal es privado.</p><p className="mt-2 text-sm leading-6 text-slate-500">Inicia sesión para acceder a tus documentos y versiones guardadas.</p><Button onClick={() => navigate("/")} className="legal-button-primary mt-6 rounded-xl text-white">Volver al inicio</Button></CardContent></Card></div>;
 
-  const handleDownload = async (doc: any) => {
-    try { await downloadBlob(await fetch(`/api/download-doc/${doc.id}`), `${doc.documentTitle}.docx`); toast.success("Documento descargado."); }
-    catch (error) { toast.error(error instanceof Error ? error.message : "Error descargando documento"); }
-  };
-
-  const handleRegenerate = async (doc: any) => {
-    setRegenerating(doc.id);
-    try {
-      const response = await fetch("/api/generate-doc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ templateId: doc.templateId, jurisdictionId: doc.jurisdictionId || "pe", formData: safeFormData(doc.formData) }) });
-      await downloadBlob(response, `${doc.templateName}.docx`);
-      await historyQuery.refetch();
-      await analyticsQuery.refetch();
-      toast.success("Documento regenerado y guardado como una nueva versión.");
-    } catch (error) { toast.error(error instanceof Error ? error.message : "Error regenerando documento"); }
-    finally { setRegenerating(null); }
-  };
-
+  const handleDownload = async (doc: any) => { try { await downloadBlob(await fetch(`/api/download-doc/${doc.id}`), `${doc.documentTitle}.docx`); toast.success("Documento descargado."); } catch (error) { toast.error(error instanceof Error ? error.message : "Error descargando documento"); } };
+  const handleRegenerate = async (doc: any) => { setRegenerating(doc.id); try { const response = await fetch("/api/generate-doc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ templateId: doc.templateId, jurisdictionId: doc.jurisdictionId || "pe", formData: safeFormData(doc.formData) }) }); await downloadBlob(response, `${doc.templateName}.docx`); await historyQuery.refetch(); await analyticsQuery.refetch(); toast.success("Documento regenerado y guardado como una nueva versión."); } catch (error) { toast.error(error instanceof Error ? error.message : "Error regenerando documento"); } finally { setRegenerating(null); } };
   const analytics = analyticsQuery.data;
-  return <div className="min-h-screen bg-[#f5f7fb] text-slate-900">
-    <header className="border-b border-slate-200 bg-white"><div className="mx-auto max-w-6xl px-4 py-7 sm:px-6 lg:px-8"><Button variant="ghost" onClick={() => navigate("/")} className="mb-5 -ml-3 text-slate-600"><ArrowLeft className="mr-2 h-4 w-4" />Volver al inicio</Button><div className="flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><div className="mb-3 flex items-center gap-2"><span className="rounded-full bg-[#e8f0f8] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#173b67]">Espacio privado</span><ShieldCheck className="h-4 w-4 text-emerald-600" /></div><h1 className="text-3xl font-semibold tracking-tight text-[#102a43] md:text-4xl">Mi historial legal</h1><p className="mt-2 text-slate-600">Tus documentos, versiones editadas y descargas en un solo lugar.</p></div><Button onClick={() => navigate("/catalogo")} className="bg-[#173b67] hover:bg-[#102a43]"><FileText className="mr-2 h-4 w-4" />Nuevo documento</Button></div></div></header>
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-      <section className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><Card className="border-slate-200"><CardContent className="p-5"><p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Generados</p><p className="mt-2 text-3xl font-semibold text-[#173b67]">{analytics?.documentsGenerated ?? "—"}</p></CardContent></Card><Card className="border-slate-200"><CardContent className="p-5"><p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Descargas</p><p className="mt-2 text-3xl font-semibold text-[#173b67]">{analytics?.downloads ?? "—"}</p></CardContent></Card><Card className="border-slate-200"><CardContent className="p-5"><p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Ediciones</p><p className="mt-2 text-3xl font-semibold text-[#173b67]">{analytics?.edits ?? "—"}</p></CardContent></Card><Card className="border-slate-200"><CardContent className="flex items-center gap-4 p-5"><div className="rounded-full bg-[#e8f0f8] p-3"><BarChart3 className="h-5 w-5 text-[#173b67]" /></div><div><p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Jurisdicción</p><p className="mt-1 font-semibold text-slate-800">Perú</p><p className="text-xs text-slate-500">Contexto activo</p></div></CardContent></Card></section>
-      <div className="mb-6 rounded-2xl border border-[#c9d8e8] bg-[#eef5fb] p-4 text-sm text-[#244b73]"><p className="font-semibold">Historial contextualizado para Perú</p><p className="mt-1">Las futuras jurisdicciones tendrán catálogos y prompts independientes; por ahora solo Perú está habilitado.</p></div>
-      {historyQuery.isLoading ? <div className="py-16 text-center"><Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-[#173b67]" /><p className="text-slate-600">Cargando historial...</p></div> : !historyQuery.data?.length ? <Card className="border-dashed border-slate-300"><CardContent className="p-12 text-center"><FileText className="mx-auto mb-4 h-9 w-9 text-slate-400" /><p className="mb-4 text-lg text-slate-600">Aún no has generado ningún documento.</p><Button onClick={() => navigate("/catalogo")} className="bg-[#173b67]">Generar tu primer documento</Button></CardContent></Card> : <div className="space-y-4">{historyQuery.data.map((doc: any) => { const isPreview = previewing === doc.id; return <Card key={doc.id} className="border-slate-200 shadow-sm"><CardHeader><div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start"><div><CardTitle className="text-lg text-[#102a43]">{doc.documentTitle}</CardTitle><CardDescription className="mt-1">{doc.templateName} · Generado el {format(new Date(doc.createdAt), "d 'de' MMMM 'de' yyyy", { locale: es })}</CardDescription></div><div className="flex items-center gap-2"><Badge className="bg-[#e8f0f8] text-[#173b67] hover:bg-[#e8f0f8]">Perú</Badge><Badge variant="outline">{doc.templateId}</Badge></div></div></CardHeader><CardContent><div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4"><p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Datos utilizados</p><pre className="max-h-24 overflow-y-auto whitespace-pre-wrap font-mono text-xs text-slate-700">{JSON.stringify(safeFormData(doc.formData), null, 2)}</pre></div>{isPreview && <article className="mb-4 max-h-80 overflow-y-auto rounded-xl border border-slate-200 bg-[#fffefb] p-5 font-serif text-sm leading-7 text-slate-700 whitespace-pre-wrap">{doc.generatedContent}</article>}<div className="flex flex-col gap-2 sm:flex-row"><Button onClick={() => setPreviewing(isPreview ? null : doc.id)} variant="outline" className="flex-1 border-slate-300"><Eye className="mr-2 h-4 w-4" />{isPreview ? "Ocultar vista previa" : "Ver vista previa"}</Button><Button onClick={() => handleDownload(doc)} variant="outline" className="flex-1 border-slate-300"><Download className="mr-2 h-4 w-4" />Descargar</Button><Button onClick={() => handleRegenerate(doc)} disabled={regenerating === doc.id} variant="outline" className="flex-1 border-slate-300">{regenerating === doc.id ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Regenerando...</> : <><RotateCcw className="mr-2 h-4 w-4" />Regenerar</>}</Button></div></CardContent></Card>; })}</div>}
+
+  return <div className="min-h-screen bg-[#fbf8f1] text-[#102a43]">
+    <header className="border-b border-[#e8dec9] bg-[#fbf8f1]/92 backdrop-blur-xl"><div className="container flex min-h-[5.35rem] items-center justify-between gap-4 py-4"><button type="button" onClick={() => navigate("/")} aria-label="Volver a LegalDoc"><BrandMark /></button><Button onClick={() => navigate("/catalogo")} className="legal-button-primary rounded-xl text-white"><FileText className="mr-2 h-4 w-4" />Nuevo documento</Button></div></header>
+    <main className="container py-8 sm:py-10 lg:py-12"><button type="button" onClick={() => navigate("/")} className="mb-6 inline-flex items-center text-sm font-bold text-[#607483] transition hover:text-[#8c6b35]"><ArrowLeft className="mr-2 h-4 w-4" />Inicio</button><section className="border-b border-[#dfcfb4] pb-8"><p className="legal-kicker">Archivo privado</p><div className="mt-3 flex flex-col justify-between gap-5 lg:flex-row lg:items-end"><div><h1 className="font-display text-5xl font-semibold tracking-[-.05em] text-[#102a43] sm:text-6xl">Tu práctica, ordenada.</h1><p className="mt-4 max-w-xl leading-7 text-slate-600">Consulta borradores, revisa versiones y vuelve a descargar los documentos de tu espacio de trabajo.</p></div><div className="flex items-center gap-2 rounded-xl border border-[#d8c49e] bg-[#fffaf0] px-3 py-2 text-xs font-bold text-[#5e724f]"><ShieldCheck className="h-4 w-4" />Espacio personal · Perú</div></div></section>
+      <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><Metric label="Generados" value={analytics?.documentsGenerated} icon={FileText} tone="gold" /><Metric label="Descargas" value={analytics?.downloads} icon={Download} tone="green" /><Metric label="Ediciones" value={analytics?.edits} icon={FolderClock} tone="navy" /><div className="legal-surface rounded-2xl p-5"><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-[#f1eadc] text-[#8c6b35]"><BarChart3 className="h-5 w-5" /></div><div><p className="text-xs font-extrabold uppercase tracking-[.14em] text-slate-500">Jurisdicción</p><p className="mt-1 text-lg font-extrabold text-[#284458]">Perú</p></div></div></div></section>
+      <div className="mt-7 flex items-start gap-3 rounded-2xl border border-[#d8c49e] bg-[#f8efd9] p-4 text-sm leading-6 text-[#4d6170]"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#8c6b35]" /><p><strong className="text-[#284458]">Control de versiones.</strong> Cada documento conserva la jurisdicción y el contenido con el que fue generado. Revisa siempre los datos antes de utilizarlo.</p></div>
+      <section className="mt-8">{historyQuery.isLoading ? <div className="py-16 text-center"><Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-[#8c6b35]" /><p className="text-sm text-slate-500">Abriendo tu archivo...</p></div> : !historyQuery.data?.length ? <div className="legal-surface rounded-2xl px-6 py-16 text-center"><div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#e7f0ea] text-[#1d5b4d]"><FileText className="h-6 w-6" /></div><h2 className="mt-5 text-xl font-extrabold text-[#284458]">Aún no hay documentos en tu archivo</h2><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">Tu primer borrador aparecerá aquí cuando completes una plantilla del catálogo.</p><Button onClick={() => navigate("/catalogo")} className="legal-button-primary mt-6 rounded-xl text-white">Explorar catálogo</Button></div> : <div className="space-y-4">{historyQuery.data.map((doc: any, index) => { const isPreview = previewing === doc.id; return <article key={doc.id} className="legal-surface overflow-hidden rounded-2xl"><div className="flex flex-col justify-between gap-4 border-b border-[#e6dbc7] px-5 py-5 sm:flex-row sm:items-start sm:px-6"><div className="flex gap-4"><span className="font-display text-4xl text-[#d0b176]">{String(index + 1).padStart(2, "0")}</span><div><h2 className="text-lg font-extrabold text-[#284458]">{doc.documentTitle}</h2><p className="mt-1 text-sm text-slate-500">{doc.templateName} · {format(new Date(doc.createdAt), "d 'de' MMMM 'de' yyyy", { locale: es })}</p></div></div><div className="flex flex-wrap gap-2"><Badge className="bg-[#e8f0eb] text-[.65rem] font-extrabold uppercase tracking-[.1em] text-[#32604e] hover:bg-[#e8f0eb]">Perú</Badge><Badge variant="outline" className="border-[#d8c49e] bg-[#fffaf0] text-[.65rem] font-extrabold uppercase tracking-[.1em] text-[#755725]">{doc.templateId}</Badge></div></div><div className="px-5 py-5 sm:px-6"><div className="rounded-xl border border-[#e6dbc7] bg-[#fffdf8]/75 p-4"><p className="text-xs font-extrabold uppercase tracking-[.13em] text-[#8c6b35]">Contexto ingresado</p><pre className="mt-3 max-h-28 overflow-y-auto whitespace-pre-wrap font-mono text-xs leading-5 text-[#536979]">{JSON.stringify(safeFormData(doc.formData), null, 2)}</pre></div>{isPreview && <article className="legal-paper mt-4 max-h-80 overflow-y-auto rounded-xl border border-[#e6dbc7] p-5 font-serif text-base leading-8 text-[#354b5b] whitespace-pre-wrap">{doc.generatedContent}</article>}<div className="mt-4 grid gap-2 sm:grid-cols-3"><Button onClick={() => setPreviewing(isPreview ? null : doc.id)} variant="outline" className="rounded-xl border-[#cdbb96] text-[#284458] hover:bg-[#f4ecdd]"><Eye className="mr-2 h-4 w-4" />{isPreview ? "Ocultar vista" : "Ver borrador"}</Button><Button onClick={() => handleDownload(doc)} variant="outline" className="rounded-xl border-[#cdbb96] text-[#284458] hover:bg-[#f4ecdd]"><Download className="mr-2 h-4 w-4" />Descargar Word</Button><Button onClick={() => handleRegenerate(doc)} disabled={regenerating === doc.id} className="legal-button-primary rounded-xl text-white">{regenerating === doc.id ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Regenerando...</> : <><RotateCcw className="mr-2 h-4 w-4" />Regenerar</>}</Button></div></div></article>; })}</div>}</section>
     </main>
   </div>;
+}
+
+function Metric({ label, value, icon: Icon, tone }: { label: string; value?: number; icon: typeof FileText; tone: "gold" | "green" | "navy" }) {
+  const toneClasses = { gold: "bg-[#f1eadc] text-[#8c6b35]", green: "bg-[#e7f0ea] text-[#1d5b4d]", navy: "bg-[#e8eef4] text-[#1d4b6e]" };
+  return <div className="legal-surface rounded-2xl p-5"><div className="flex items-center justify-between"><div><p className="text-xs font-extrabold uppercase tracking-[.14em] text-slate-500">{label}</p><p className="mt-2 font-display text-4xl font-semibold text-[#284458]">{value ?? "—"}</p></div><div className={`grid h-10 w-10 place-items-center rounded-xl ${toneClasses[tone]}`}><Icon className="h-5 w-5" /></div></div></div>;
 }

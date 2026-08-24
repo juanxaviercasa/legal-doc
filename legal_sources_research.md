@@ -1,0 +1,24 @@
+# Investigación de fuentes jurídicas peruanas
+
+## Hallazgos iniciales
+
+| Fuente | Institución | Cobertura constatada | Acceso observado | Uso propuesto |
+|---|---|---|---|---|
+| [SPIJ](https://spijweb.minjus.gob.pe/) | Ministerio de Justicia y Derechos Humanos | Legislación nacional digital, sistematizada y actualizada; su página de acceso enumera Constitución, códigos, leyes, decretos, normas subnacionales y una selección de jurisprudencia | Una parte importante es de acceso libre; el acceso completo a normas y jurisprudencia requiere suscripción | Fuente primaria para textos consolidados, siempre respetando sus condiciones de acceso y sin asumir una API pública |
+| [Diario Oficial El Peruano](https://diariooficial.elperuano.pe/Normas) | Editora Perú | Normas legales, normas actualizadas, casaciones, precedentes, procesos y plenos | Portal público con filtro por fechas y verificador de autenticidad de publicaciones digitales | Fuente de publicación y verificación de norma nueva o modificatoria |
+| [Buscador de jurisprudencia](https://jurisprudencia.sedetc.gob.pe/sistematizacion-jurisprudencial/busqueda/) | Tribunal Constitucional | Portal de búsqueda de jurisprudencia constitucional identificado por su título institucional | La carga en navegador es dinámica; se requiere verificación posterior de sus capacidades y condiciones de reutilización | Fuente de contraste para jurisprudencia constitucional, no como base automática hasta validar acceso y metadatos |
+| [Constituciones del Perú](https://www.leyes.congreso.gob.pe/constituciones.aspx) | Congreso de la República | Archivo digital de Constituciones, incluida la Constitución Política del Perú de 1993 | Consulta y descarga pública de documentos | Fuente de referencia constitucional; confirmar texto vigente y modificaciones antes de incorporar al corpus |
+| [Catálogo Nacional de Datos Judiciales](https://www.gob.pe/institucion/pcm/campa%C3%B1as/108551-catalogo-nacional-de-datos-judiciales) | PCM / Secretaría de Gobierno y Transformación Digital | Iniciativa para ordenar y abrir datos judiciales estructurados, anónimos y de interés público | La página oficial describe datos reutilizables y remite a la Plataforma Nacional de Datos Abiertos | Fuente complementaria para metadatos y datos judiciales; no sustituye al texto oficial de normas, códigos ni sentencias |
+| [Código Civil — 16.ª edición oficial](https://spijweb.minjus.gob.pe/sdm_downloads/codigo-civil-decimo-sexta-edicion-oficial/) | SPIJ / MINJUSDH | Edición oficial descargable del Código Civil | Página pública de descarga | Fuente inicial para contratos y actos civiles; registrar fecha y revisar modificatorias posteriores |
+| [Código Penal — D. Leg. 635](https://www.gob.pe/institucion/indecopi/normas-legales/5582266-635) | INDECOPI / gob.pe | Edición en PDF del Decreto Legislativo 635 — Código Penal | Página oficial pública | Fuente inicial solo para documentos penales; deberá contrastarse su vigencia y modificatorias |
+| [Código Procesal Penal — 8.ª edición oficial](https://www.gob.pe/institucion/minjus/informes-publicaciones/6346160-codigo-procesal-penal-octava-edicion-oficial-actualizada-a-noviembre-de-2024) | MINJUSDH / gob.pe | Edición oficial actualizada a noviembre de 2024 | Página oficial pública | Fuente inicial para documentos de materia penal; requiere protocolo de actualización posterior |
+
+## Conclusión provisional
+
+No se ha confirmado una API pública, documentada y gratuita que exponga de forma integral y reutilizable el SPIJ, El Peruano o la jurisprudencia constitucional. La arquitectura debe partir de fuentes oficiales con URL, fecha de consulta, versión, estado de vigencia y fragmentos citables; el uso automatizado de cualquier portal dependerá de sus condiciones de uso y de la disponibilidad técnica validada.
+
+El Catálogo Nacional de Datos Judiciales puede convertirse en una fuente futura de datasets estructurados, pero la consulta de su portal nacional no resolvió desde este entorno el 24 de agosto de 2026. Se deberá obtener su URL o API canónica directamente de la entidad responsable antes de planificar una integración.
+
+## Observación técnica de El Peruano
+
+La página pública de [Normas Legales Actualizadas](https://diariooficial.elperuano.pe/Normas/normasactualizadas) declara que sus normas compiladas están en revisión constante y reflejan modificaciones publicadas en el Diario Oficial. En una inspección pasiva de recursos cargados por la página se observó una solicitud pública a `https://diariooficial.elperuano.pe/Normas/listarMateria` y un script de interfaz `normasactualizadas.js`. Esto demuestra una interfaz web que consulta datos, pero **no prueba la existencia de una API pública documentada ni autoriza su consumo automatizado**. Antes de integrar el flujo se debe solicitar por escrito a Editora Perú el método autorizado de consulta, frecuencia permitida, licencia de reutilización y mecanismo para detectar correcciones o anulaciones.

@@ -1,13 +1,32 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { trpc } from "@/lib/trpc";
-import { useLocation } from "wouter";
-import { FileText, Zap, Shield, Clock, ArrowRight, LogOut } from "lucide-react";
-import { useState } from "react";
+import { BrandMark } from "@/components/BrandMark";
 import { JurisdictionSelector } from "@/components/JurisdictionSelector";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { trpc } from "@/lib/trpc";
 import { startLogin } from "@/const";
+import {
+  ArrowRight,
+  ArrowUpRight,
+  BookOpen,
+  CheckCircle2,
+  FilePenLine,
+  FolderClock,
+  Landmark,
+  LogOut,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
+import { useState } from "react";
+import { useLocation } from "wouter";
+
+const HERO_IMAGE = "/manus-storage/legal-doc-hero-editorial_c740f48c.png";
+
+const workflow = [
+  { number: "01", icon: BookOpen, title: "Elige el acto", description: "Explora un catálogo organizado por materia y selecciona la plantilla que necesitas." },
+  { number: "02", icon: FilePenLine, title: "Aporta el contexto", description: "Completa un formulario diseñado para reunir los hechos, partes y condiciones del caso." },
+  { number: "03", icon: ShieldCheck, title: "Revisa tu borrador", description: "Edita el texto, valida los datos relevantes y descarga una versión Word profesional." },
+];
 
 export default function Home() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -15,239 +34,76 @@ export default function Home() {
   const [jurisdictionId, setJurisdictionId] = useState("pe");
   const templatesQuery = trpc.documents.getTemplates.useQuery({ jurisdictionId });
 
-  const handleLogout = async () => {
-    await logout();
-  };
-
-  const handleNavigateToGenerator = (templateId: string) => {
-    navigate(`/generator/${templateId}?jurisdiction=${jurisdictionId}`);
-  };
+  const goToGenerator = (templateId: string) => navigate(`/generator/${templateId}?jurisdiction=${jurisdictionId}`);
+  const scrollToWorkflow = () => document.getElementById("como-funciona")?.scrollIntoView({ behavior: "smooth" });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
-      {/* Navigation */}
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <FileText className="w-8 h-8 text-blue-600" />
-            <span className="text-xl font-bold text-slate-900">LegalDoc</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="hidden lg:block"><JurisdictionSelector value={jurisdictionId} onChange={setJurisdictionId} compact /></div>
+    <div className="min-h-screen overflow-x-hidden bg-[#fbf8f1] text-[#102a43]">
+      <header className="sticky top-0 z-50 border-b border-[#e8dec9]/80 bg-[#fbf8f1]/88 backdrop-blur-xl">
+        <div className="container flex h-[4.8rem] items-center justify-between gap-4">
+          <button type="button" onClick={() => navigate("/")} className="shrink-0 text-left" aria-label="Ir al inicio de LegalDoc"><BrandMark /></button>
+          <nav className="hidden items-center gap-7 lg:flex" aria-label="Navegación principal">
+            <button type="button" onClick={() => navigate("/catalogo")} className="legal-nav-link">Catálogo</button>
+            <button type="button" onClick={scrollToWorkflow} className="legal-nav-link">Cómo funciona</button>
+            {isAuthenticated && <button type="button" onClick={() => navigate("/history")} className="legal-nav-link">Mi espacio</button>}
+          </nav>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="hidden xl:block"><JurisdictionSelector value={jurisdictionId} onChange={setJurisdictionId} compact /></div>
             {isAuthenticated && user ? (
               <>
-                <span className="text-sm text-slate-600">Bienvenido, {user.name}</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigate("/history")}
-                  className="text-slate-700 hover:text-blue-600"
-                >
-                  Mi Historial
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleLogout}
-                  className="text-slate-700 hover:text-red-600"
-                >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Salir
-                </Button>
+                <button type="button" onClick={() => navigate("/history")} className="hidden text-right sm:block"><span className="block text-xs font-bold text-[#1f415a]">{user.name || "Mi cuenta"}</span><span className="block text-[.65rem] text-slate-500">Espacio privado</span></button>
+                <Button size="icon" variant="ghost" onClick={() => logout()} className="text-slate-500 hover:bg-[#f1eadc] hover:text-[#102a43]" aria-label="Cerrar sesión"><LogOut className="h-4 w-4" /></Button>
+                <Button onClick={() => navigate("/catalogo")} className="legal-button-primary hidden rounded-xl px-4 text-white sm:flex">Nuevo documento <ArrowRight className="ml-2 h-4 w-4" /></Button>
               </>
             ) : (
-              <Button
-                onClick={() => startLogin()}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                Iniciar Sesión
-              </Button>
+              <>
+                <Button variant="ghost" onClick={() => startLogin()} className="hidden rounded-xl text-[#284458] hover:bg-[#f1eadc] sm:flex">Ingresar</Button>
+                <Button onClick={() => startLogin()} className="legal-button-primary rounded-xl px-4 text-white">Comenzar <ArrowRight className="ml-2 h-4 w-4" /></Button>
+              </>
             )}
           </div>
         </div>
-      </nav>
+      </header>
 
-      {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="text-center mb-16">
-          <Badge className="mb-4 bg-blue-100 text-blue-700 hover:bg-blue-100">
-            Generación de Documentos Legales con IA
-          </Badge>
-          <h1 className="text-5xl md:text-6xl font-bold text-slate-900 mb-6 leading-tight">
-            Generador de Documentos Legales
-            <span className="block text-blue-600">para Abogados Peruanos</span>
-          </h1>
-          <p className="text-xl text-slate-600 max-w-3xl mx-auto mb-8">
-            Crea documentos legales profesionales en minutos. Utiliza inteligencia artificial para generar contenido jurídico preciso, conforme a la legislación peruana, con un solo clic.
-          </p>
-          <div className="flex gap-4 justify-center flex-wrap">
-            <Button
-              onClick={() => navigate("/catalogo")}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg"
-            >
-              Explorar Documentos
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
-            {!isAuthenticated && (
-              <Button
-                onClick={() => startLogin()}
-                variant="outline"
-                className="px-8 py-6 text-lg border-slate-300"
-              >
-                Crear Cuenta
-              </Button>
-            )}
+      <main>
+        <section className="relative border-b border-[#eadfc9] bg-[linear-gradient(115deg,#f9f4e8_0%,#fbf8f1_55%,#edf2f1_100%)]">
+          <div className="container grid min-h-[660px] items-center gap-12 py-12 lg:grid-cols-[1.02fr_.98fr] lg:py-18">
+            <div className="relative z-10 max-w-2xl py-8 lg:py-12">
+              <div className="mb-7 flex flex-wrap items-center gap-3"><Badge className="border border-[#d9bf89] bg-[#f5ead0] px-3 py-1 text-[.67rem] font-extrabold uppercase tracking-[.16em] text-[#735529] hover:bg-[#f5ead0]">Perú · Jurisdicción activa</Badge><span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><span className="h-1.5 w-1.5 rounded-full bg-emerald-600" /> Entorno de trabajo privado</span></div>
+              <p className="legal-kicker mb-5">El oficio jurídico, con más tiempo para pensar</p>
+              <h1 className="font-display text-[3.2rem] font-semibold leading-[.91] tracking-[-.055em] text-[#102a43] sm:text-[4.25rem] lg:text-[5.25rem]">Redacta con <span className="text-[#8c6b35]">claridad.</span><br />Decide con criterio.</h1>
+              <p className="mt-7 max-w-xl text-[1.04rem] leading-8 text-[#4e6374] sm:text-lg">LegalDoc organiza el primer borrador de tus documentos y te devuelve una base editable para trabajar dentro del contexto jurídico peruano.</p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row"><Button onClick={() => navigate("/catalogo")} size="lg" className="legal-button-primary h-13 rounded-xl px-6 text-white">Explorar documentos <ArrowRight className="ml-2 h-4 w-4" /></Button><Button onClick={scrollToWorkflow} size="lg" variant="outline" className="h-13 rounded-xl border-[#cdbb96] bg-[#fffdf8]/70 px-6 text-[#284458] hover:bg-[#f4ecdd]">Conocer el flujo <ArrowUpRight className="ml-2 h-4 w-4" /></Button></div>
+              <div className="mt-10 grid max-w-xl grid-cols-1 gap-x-7 gap-y-4 border-t border-[#daccb3] pt-6 sm:grid-cols-3"><div><p className="text-xs font-extrabold uppercase tracking-[.14em] text-[#8c6b35]">Documento</p><p className="mt-1 text-sm font-semibold text-[#284458]">Editable antes de descargar</p></div><div><p className="text-xs font-extrabold uppercase tracking-[.14em] text-[#8c6b35]">Historial</p><p className="mt-1 text-sm font-semibold text-[#284458]">Tus versiones en un lugar</p></div><div><p className="text-xs font-extrabold uppercase tracking-[.14em] text-[#8c6b35]">Criterio</p><p className="mt-1 text-sm font-semibold text-[#284458]">Revisión profesional siempre</p></div></div>
+            </div>
+
+            <div className="relative mx-auto w-full max-w-[650px] lg:mr-0">
+              <div className="absolute -inset-5 rounded-[2.1rem] bg-[#c59a57]/14 blur-3xl" />
+              <div className="relative overflow-hidden rounded-[1.8rem] border border-white/70 bg-[#102a43] p-2 shadow-[0_28px_80px_rgba(16,42,67,.28)]">
+                <img src={HERO_IMAGE} alt="Escritorio de trabajo jurídico con documentos y pluma" className="h-[420px] w-full rounded-[1.35rem] object-cover sm:h-[510px]" />
+                <div className="absolute inset-x-2 bottom-2 rounded-b-[1.35rem] bg-gradient-to-t from-[#0b2138] via-[#0b2138]/70 to-transparent px-6 pb-6 pt-24 sm:px-8">
+                  <div className="max-w-xs rounded-2xl border border-white/15 bg-[#0f2b45]/85 p-4 backdrop-blur-md"><div className="flex items-center gap-3"><div className="grid h-9 w-9 place-items-center rounded-xl bg-[#f5d98b] text-[#102a43]"><Landmark className="h-4 w-4" /></div><div><p className="text-xs font-bold uppercase tracking-[.14em] text-[#efcf85]">Marco activo</p><p className="mt-0.5 text-sm font-semibold text-white">Legislación peruana</p></div></div></div>
+                </div>
+              </div>
+              <div className="legal-surface absolute -bottom-5 -left-4 hidden max-w-[230px] rounded-2xl p-4 md:block"><div className="flex items-start gap-3"><div className="mt-0.5 rounded-lg bg-[#e7f0ea] p-2 text-emerald-700"><CheckCircle2 className="h-4 w-4" /></div><div><p className="text-xs font-extrabold uppercase tracking-[.13em] text-[#8c6b35]">Antes de firmar</p><p className="mt-1 text-sm font-bold leading-5 text-[#284458]">Revisa hechos, nombres, fechas y referencias.</p></div></div></div>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:hidden"><div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><JurisdictionSelector value={jurisdictionId} onChange={setJurisdictionId} /></div></section>
+        <section className="container py-9 lg:hidden"><div className="legal-surface rounded-2xl p-5"><JurisdictionSelector value={jurisdictionId} onChange={setJurisdictionId} /></div></section>
 
-      {/* Features Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <h2 className="text-3xl font-bold text-slate-900 mb-12 text-center">
-          ¿Por qué elegir LegalDoc?
-        </h2>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-          <Card className="border-slate-200 hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <Zap className="w-8 h-8 text-blue-600 mb-2" />
-              <CardTitle>Rápido y Eficiente</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-slate-600">
-                Genera documentos legales profesionales en cuestión de minutos, no horas.
-              </p>
-            </CardContent>
-          </Card>
+        <section id="como-funciona" className="container py-20 lg:py-28">
+          <div className="grid gap-10 lg:grid-cols-[.72fr_1.28fr] lg:gap-20"><div><p className="legal-kicker">Un flujo que respeta tu práctica</p><h2 className="mt-4 max-w-md font-display text-5xl font-semibold leading-[.95] tracking-[-.045em] text-[#102a43]">Menos fricción.<br /><span className="text-[#8c6b35]">Más atención</span> al caso.</h2><p className="mt-6 max-w-sm leading-7 text-slate-600">La interfaz separa el contexto del caso, el borrador y la revisión para ayudarte a conservar el control de cada decisión.</p></div><div className="grid gap-4 md:grid-cols-3">{workflow.map((step) => { const Icon = step.icon; return <article key={step.number} className="legal-surface legal-hover-lift rounded-2xl p-6"><div className="flex items-start justify-between"><span className="font-display text-3xl font-semibold text-[#d0b176]">{step.number}</span><div className="rounded-xl bg-[#e9f0eb] p-2.5 text-[#1d5b4d]"><Icon className="h-5 w-5" /></div></div><h3 className="mt-12 text-lg font-extrabold text-[#284458]">{step.title}</h3><p className="mt-3 text-sm leading-6 text-slate-600">{step.description}</p></article>; })}</div></div>
+        </section>
 
-          <Card className="border-slate-200 hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <Shield className="w-8 h-8 text-blue-600 mb-2" />
-              <CardTitle>Conforme a la Ley</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-slate-600">
-                Todos los documentos respetan la legislación peruana vigente y mejores prácticas legales.
-              </p>
-            </CardContent>
-          </Card>
+        <section className="border-y border-[#e8dec9] bg-[#f1eadc]/52 py-20 lg:py-24"><div className="container"><div className="mb-10 flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><p className="legal-kicker">Catálogo jurídico</p><h2 className="mt-3 font-display text-5xl font-semibold leading-none tracking-[-.045em] text-[#102a43]">Elige tu punto de partida.</h2></div><Button variant="outline" onClick={() => navigate("/catalogo")} className="w-fit rounded-xl border-[#cdbb96] bg-[#fffdf8] text-[#284458] hover:bg-[#f4ecdd]">Ver catálogo completo <ArrowRight className="ml-2 h-4 w-4" /></Button></div>
+          {templatesQuery.isLoading ? <div className="grid gap-4 md:grid-cols-3">{Array.from({ length: 3 }).map((_, index) => <div key={index} className="h-52 animate-pulse rounded-2xl bg-[#e3d8c4]" />)}</div> : <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{templatesQuery.data?.slice(0, 6).map((template, index) => <button type="button" key={template.id} onClick={() => goToGenerator(template.id)} className="legal-surface legal-hover-lift group relative min-h-[220px] overflow-hidden rounded-2xl p-6 text-left"><span className="absolute right-5 top-3 font-display text-6xl text-[#d8c8aa]/30">0{index + 1}</span><Badge variant="outline" className="relative border-[#d8c49e] bg-[#fffaf0] text-[.65rem] font-extrabold uppercase tracking-[.12em] text-[#755725]">{template.category}</Badge><h3 className="relative mt-8 max-w-[15rem] text-lg font-extrabold text-[#284458] group-hover:text-[#8c6b35]">{template.title}</h3><p className="relative mt-3 max-w-[17rem] text-sm leading-6 text-slate-600">{template.description}</p><span className="relative mt-6 inline-flex items-center text-sm font-extrabold text-[#1d4b6e]">Abrir formulario <ArrowRight className="ml-2 h-4 w-4" /></span></button>)}</div>}
+        </div></section>
 
-          <Card className="border-slate-200 hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <FileText className="w-8 h-8 text-blue-600 mb-2" />
-              <CardTitle>Formatos Profesionales</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-slate-600">
-                Descarga documentos en formato Word (.docx) listos para usar o personalizar.
-              </p>
-            </CardContent>
-          </Card>
+        <section className="container py-20 lg:py-28"><div className="overflow-hidden rounded-[1.8rem] bg-[#102a43] px-6 py-12 text-white shadow-[0_30px_80px_rgba(16,42,67,.23)] sm:px-10 lg:px-14"><div className="grid items-center gap-8 lg:grid-cols-[1.2fr_.8fr]"><div><div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl border border-[#f3d58c]/30 bg-[#f3d58c]/10 text-[#f3d58c]"><Sparkles className="h-5 w-5" /></div><p className="text-xs font-extrabold uppercase tracking-[.16em] text-[#f3d58c]">Tu próximo borrador empieza aquí</p><h2 className="mt-4 max-w-xl font-display text-5xl font-semibold leading-[.95] tracking-[-.045em]">Una mesa de trabajo pensada para el abogado que decide.</h2></div><div className="lg:justify-self-end"><p className="mb-6 max-w-sm text-sm leading-7 text-[#c8d4df]">Explora el catálogo, completa los datos de tu caso y trabaja sobre un texto editable antes de descargarlo.</p><Button onClick={() => navigate("/catalogo")} size="lg" className="rounded-xl bg-[#f5d98b] px-6 font-extrabold text-[#102a43] hover:bg-[#ffe6a0]">Ir al catálogo <ArrowRight className="ml-2 h-4 w-4" /></Button></div></div></div></section>
+      </main>
 
-          <Card className="border-slate-200 hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <Clock className="w-8 h-8 text-blue-600 mb-2" />
-              <CardTitle>Historial Completo</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-slate-600">
-                Accede a todos tus documentos generados en un historial seguro y organizado.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      {/* Templates Preview Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <h2 className="text-3xl font-bold text-slate-900 mb-12 text-center">
-          Tipos de Documentos Disponibles
-        </h2>
-        {templatesQuery.isLoading ? (
-          <div className="text-center py-12">
-            <p className="text-slate-600">Cargando plantillas...</p>
-          </div>
-        ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {templatesQuery.data?.slice(0, 6).map((template) => (
-              <Card
-                key={template.id}
-                className="border-slate-200 hover:shadow-lg hover:border-blue-300 transition-all cursor-pointer group"
-                onClick={() => handleNavigateToGenerator(template.id)}
-              >
-                <CardHeader>
-                  <div className="flex items-start justify-between mb-2">
-                    <Badge variant="outline" className="text-xs">
-                      {template.category}
-                    </Badge>
-                  </div>
-                  <CardTitle className="group-hover:text-blue-600 transition-colors">
-                    {template.title}
-                  </CardTitle>
-                  <CardDescription>{template.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button
-                    variant="ghost"
-                    className="w-full text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                  >
-                    Generar Documento
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-        <div className="text-center mt-12">
-          <Button
-            onClick={() => navigate("/catalogo")}
-            variant="outline"
-            className="border-blue-600 text-blue-600 hover:bg-blue-50"
-          >
-            Ver todos los documentos
-            <ArrowRight className="w-4 h-4 ml-2" />
-          </Button>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 mb-8">
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-12 text-center text-white">
-          <h2 className="text-3xl font-bold mb-4">
-            ¿Listo para simplificar tu trabajo legal?
-          </h2>
-          <p className="text-blue-100 mb-8 text-lg">
-            Comienza a generar documentos legales profesionales hoy mismo.
-          </p>
-          {!isAuthenticated ? (
-            <Button
-              onClick={() => startLogin()}
-              className="bg-white text-blue-600 hover:bg-blue-50 px-8 py-3 text-lg font-semibold"
-            >
-              Crear Cuenta Gratis
-            </Button>
-          ) : (
-            <Button
-              onClick={() => navigate("/catalogo")}
-              className="bg-white text-blue-600 hover:bg-blue-50 px-8 py-3 text-lg font-semibold"
-            >
-              Ir al Generador
-            </Button>
-          )}
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-slate-900 text-slate-300 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p>&copy; 2026 LegalDoc. Generador de Documentos Legales para Abogados Peruanos.</p>
-          <p className="text-sm text-slate-500 mt-2">
-            Los borradores se generan con contexto peruano y requieren revisión profesional antes de su uso.
-          </p>
-        </div>
-      </footer>
+      <footer className="border-t border-[#e8dec9] bg-[#f7f1e5] py-10"><div className="container flex flex-col gap-7 sm:flex-row sm:items-end sm:justify-between"><BrandMark /><div className="max-w-md text-sm leading-6 text-slate-500 sm:text-right"><p>LegalDoc es un asistente de redacción para el contexto peruano.</p><p className="mt-1">Todo documento requiere revisión profesional antes de su uso, firma o presentación.</p></div></div></footer>
     </div>
   );
 }

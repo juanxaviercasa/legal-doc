@@ -68,3 +68,34 @@ Nota de producto: LegalDoc se mantiene especialista en Perú en esta versión. L
 
 ## Última verificación de configuración visible
 - [x] Mostrar explícitamente la terminología jurídica configurada para la jurisdicción activa en la interfaz y verificar su renderizado
+
+## Rediseño visual y experiencia para abogados
+- [x] Definir identidad de marca jurídica premium, paleta, tipografía y sistema de componentes
+- [x] Crear recursos visuales originales para la landing y los estados de producto
+- [x] Rediseñar la navegación, landing y catálogo con UX responsive
+- [x] Rediseñar generador, editor, vista previa e historial para máxima claridad operativa
+- [x] Aplicar microinteracciones, estados vacíos, accesibilidad y adaptación móvil
+- [x] Validar diseño en escritorio y móvil sin afectar flujos de generación, descarga e historial
+- [x] Ejecutar pruebas automatizadas y build de producción después del rediseño
+
+## Corpus legal peruano verificable
+- [ ] Definir las fuentes oficiales permitidas y la cobertura normativa inicial
+- [ ] Investigar accesos gratuitos y opciones programáticas oficiales para legislación y jurisprudencia peruana
+- [ ] Diseñar el modelo de fuentes con URL, fecha de consulta, vigencia y fragmentos citables
+- [ ] Implementar recuperación de fuentes aprobadas antes de cada generación
+- [ ] Mostrar referencias verificables y advertencias de vigencia en cada borrador
+- [ ] Validar el flujo de fuentes con documentos y revisión jurídica humana
+
+## Actualización automática de fuentes oficiales
+- [ ] Verificar el mecanismo técnico y las condiciones de uso de El Peruano y demás fuentes oficiales
+- [ ] Diseñar sincronización periódica con detección de altas, modificatorias, derogatorias y errores
+- [ ] Persistir versiones, fecha de publicación, fuente de origen y trazabilidad de cada norma
+- [ ] Implementar cola de revisión humana para cambios normativos de alto impacto
+- [ ] Configurar actualización periódica aprobada y alertas de fallos o cambios pendientes
+
+## Corpus gratuito y autosostenible
+- [ ] Definir repositorio jurídico propio como fuente de verdad y respaldo externo opcional
+- [x] Preparar formato Markdown y metadatos obligatorios para documentos oficiales aportados por el equipo
+- [ ] Crear inventario priorizado de Constitución, códigos, leyes y normas requeridas por las plantillas activas
+- [ ] Diseñar detección gratuita de cambios desde publicaciones públicas sin depender de APIs de pago
+- [ ] Implementar revisión humana obligatoria antes de promover una actualización al corpus activo
