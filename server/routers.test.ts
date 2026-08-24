@@ -11,11 +11,14 @@ vi.mock("./db", () => ({
   getLegalSources: vi.fn(),
   getLegalInstruments: vi.fn(),
   getLegalInstrumentVersions: vi.fn(),
+  getPendingLegalInstrumentVersions: vi.fn(),
   getLegalChangeCandidates: vi.fn(),
   createLegalSource: vi.fn(),
+  markLegalSourceChecked: vi.fn(),
   createLegalInstrument: vi.fn(),
   createLegalInstrumentVersion: vi.fn(),
   approveLegalInstrumentVersion: vi.fn(),
+  rejectLegalInstrumentVersion: vi.fn(),
   createLegalChangeCandidate: vi.fn(),
   reviewLegalChangeCandidate: vi.fn(),
 }));
@@ -76,5 +79,22 @@ describe("legalCorpus tRPC procedures", () => {
     vi.mocked(db.createLegalSource).mockResolvedValue({ insertId: 3 } as any);
     await appRouter.createCaller(adminCtx).legalCorpus.createSource({ name: "Fuente Oficial", authority: "Entidad Pública", baseUrl: "https://www.gob.pe/", sourceType: "official_archive", updateMethod: "manual", isOfficial: true, isEnabled: true });
     expect(db.createLegalSource).toHaveBeenCalledWith(expect.objectContaining({ jurisdictionId: "pe", name: "Fuente Oficial", isOfficial: true }));
+  });
+
+  it("permite registrar la verificación manual de una fuente sin importar texto externo", async () => {
+    vi.mocked(db.markLegalSourceChecked).mockResolvedValue({ id: 3, lastCheckedAt: new Date() } as any);
+    await appRouter.createCaller(adminCtx).legalCorpus.markSourceChecked({ sourceId: 3 });
+    expect(db.markLegalSourceChecked).toHaveBeenCalledWith(3);
+  });
+
+  it("permite al revisor aprobar o rechazar una versión pendiente sin activar candidatos automáticamente", async () => {
+    vi.mocked(db.approveLegalInstrumentVersion).mockResolvedValue({ id: 11, approvalStatus: "approved" } as any);
+    vi.mocked(db.rejectLegalInstrumentVersion).mockResolvedValue({ id: 12, approvalStatus: "rejected" } as any);
+
+    await appRouter.createCaller(adminCtx).legalCorpus.approveVersion({ versionId: 11, legalStatus: "vigente", changeSummary: "Revisión humana completada" });
+    await appRouter.createCaller(adminCtx).legalCorpus.rejectVersion({ versionId: 12, reason: "La URL oficial no coincide con el texto cargado" });
+
+    expect(db.approveLegalInstrumentVersion).toHaveBeenCalledWith(expect.objectContaining({ versionId: 11, reviewerId: 7, legalStatus: "vigente" }));
+    expect(db.rejectLegalInstrumentVersion).toHaveBeenCalledWith({ versionId: 12, reviewerId: 7, reason: "La URL oficial no coincide con el texto cargado" });
   });
 });

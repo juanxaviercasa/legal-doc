@@ -93,23 +93,25 @@ Nota de producto: LegalDoc se mantiene especialista en Perú en esta versión. L
 - [x] Validar nuevamente las referencias y la experiencia visual de la Biblioteca de la Abogacía
 
 ## Corpus legal peruano verificable
-- [ ] Definir las fuentes oficiales permitidas y la cobertura normativa inicial
-- [ ] Investigar accesos gratuitos y opciones programáticas oficiales para legislación y jurisprudencia peruana
-- [ ] Diseñar el modelo de fuentes con URL, fecha de consulta, vigencia y fragmentos citables
-- [ ] Implementar recuperación de fuentes aprobadas antes de cada generación
-- [ ] Mostrar referencias verificables y advertencias de vigencia en cada borrador
+- [x] Definir las fuentes oficiales permitidas y la cobertura normativa inicial
+- [x] Investigar accesos gratuitos y opciones programáticas oficiales para legislación y jurisprudencia peruana
+- [x] Diseñar el modelo de fuentes con URL, fecha de consulta, vigencia y fragmentos citables
+- [x] Implementar recuperación de fuentes aprobadas antes de cada generación
+- [x] Mostrar referencias verificables y advertencias de vigencia en cada borrador
 - [ ] Validar el flujo de fuentes con documentos y revisión jurídica humana
+- [x] Seleccionar una única versión vigente más reciente por instrumento antes de generar
+- [x] Probar que las citas ignoran versiones aprobadas anteriores o no vigentes
 
 ## Actualización automática de fuentes oficiales
-- [ ] Verificar el mecanismo técnico y las condiciones de uso de El Peruano y demás fuentes oficiales
+- [x] Verificar el mecanismo técnico y las condiciones de uso de El Peruano y demás fuentes oficiales
 - [ ] Diseñar sincronización periódica con detección de altas, modificatorias, derogatorias y errores
-- [ ] Persistir versiones, fecha de publicación, fuente de origen y trazabilidad de cada norma
-- [ ] Implementar cola de revisión humana para cambios normativos de alto impacto
+- [x] Persistir versiones, fecha de publicación, fuente de origen y trazabilidad de cada norma
+- [x] Implementar cola de revisión humana para cambios normativos de alto impacto
 - [ ] Configurar actualización periódica aprobada y alertas de fallos o cambios pendientes
 
 ## Corpus gratuito y autosostenible
-- [ ] Definir repositorio jurídico propio como fuente de verdad y respaldo externo opcional
+- [x] Definir repositorio jurídico propio como fuente de verdad y respaldo externo opcional
 - [x] Preparar formato Markdown y metadatos obligatorios para documentos oficiales aportados por el equipo
-- [ ] Crear inventario priorizado de Constitución, códigos, leyes y normas requeridas por las plantillas activas
-- [ ] Diseñar detección gratuita de cambios desde publicaciones públicas sin depender de APIs de pago
-- [ ] Implementar revisión humana obligatoria antes de promover una actualización al corpus activo
+- [x] Crear inventario priorizado de Constitución, códigos, leyes y normas requeridas por las plantillas activas
+- [x] Diseñar detección gratuita de cambios desde publicaciones públicas sin depender de APIs de pago
+- [x] Implementar revisión humana obligatoria antes de promover una actualización al corpus activo

@@ -12,10 +12,11 @@ export interface DocxOptions {
   title: string;
   content: string;
   author?: string;
+  citations?: Array<{ label: string; sourceUrl: string; versionAsOf?: string }>;
 }
 
 export async function generateDocxBuffer(options: DocxOptions): Promise<Buffer> {
-  const { title, content, author = "Generador de Documentos Legales" } = options;
+  const { title, content, author = "Generador de Documentos Legales", citations = [] } = options;
 
   // Split content into paragraphs
   const paragraphs = content.split("\n").filter((p) => p.trim().length > 0);
@@ -60,6 +61,24 @@ export async function generateDocxBuffer(options: DocxOptions): Promise<Buffer> 
       })
     );
   });
+
+  if (citations.length) {
+    docParagraphs.push(new Paragraph({ children: [new PageBreak()] }));
+    docParagraphs.push(new Paragraph({
+      spacing: { after: 240 },
+      children: [new TextRun({ text: "FUENTES CONSULTADAS", bold: true, size: 24, font: "Times New Roman" })],
+    }));
+    docParagraphs.push(new Paragraph({
+      spacing: { after: 240 },
+      children: [new TextRun({ text: "Referencias del corpus jurídico aprobado utilizadas como contexto de redacción. La vigencia y pertinencia deben ser revisadas por un profesional antes de usar o presentar este documento.", italics: true, size: 20, font: "Times New Roman" })],
+    }));
+    citations.forEach((citation, index) => {
+      docParagraphs.push(new Paragraph({
+        spacing: { after: 140 },
+        children: [new TextRun({ text: `${index + 1}. ${citation.label}${citation.versionAsOf ? ` · corte ${citation.versionAsOf}` : ""}\n${citation.sourceUrl}`, size: 20, font: "Times New Roman" })],
+      }));
+    });
+  }
 
   const doc = new Document({
     sections: [

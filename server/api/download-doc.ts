@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { generateDocxBuffer, sanitizeFilename } from "../../lib/docx-utils";
-import { getDocumentById, recordUsageEvent } from "../db";
+import { getDocumentById, getDocumentLegalCitations, recordUsageEvent } from "../db";
 import { sdk } from "../_core/sdk";
 import type { User } from "../../drizzle/schema";
 
@@ -31,12 +31,15 @@ router.get("/download-doc/:documentId", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Document not found" });
     }
 
+    const citations = await getDocumentLegalCitations(documentId);
+
     // Generate DOCX from stored content
     let docxBuffer: Buffer;
     try {
       docxBuffer = await generateDocxBuffer({
         title: document.documentTitle,
         content: document.generatedContent,
+        citations: citations.map((citation) => ({ label: citation.citationLabel, sourceUrl: citation.sourceUrl })),
       });
     } catch (docxError) {
       console.error("DOCX generation error:", docxError);

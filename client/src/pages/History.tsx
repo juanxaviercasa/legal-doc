@@ -11,8 +11,22 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useLocation } from "wouter";
 
-function safeFormData(value: string) { try { return JSON.parse(value) as Record<string, unknown>; } catch { return {}; } }
-async function downloadBlob(response: Response, filename: string) { if (!response.ok) throw new Error("No se pudo descargar el documento"); const blob = await response.blob(); const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = filename; document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url); }
+function safeFormData(value: string) {
+  try { return JSON.parse(value) as Record<string, unknown>; } catch { return {}; }
+}
+
+async function downloadBlob(response: Response, filename: string) {
+  if (!response.ok) throw new Error("No se pudo descargar el documento");
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
 
 export default function History() {
   const { isAuthenticated } = useAuth();
@@ -21,19 +35,56 @@ export default function History() {
   const [previewing, setPreviewing] = useState<number | null>(null);
   const historyQuery = trpc.documents.getHistory.useQuery(undefined, { enabled: isAuthenticated });
   const analyticsQuery = trpc.documents.analytics.useQuery(undefined, { enabled: isAuthenticated });
+  const citationsQuery = trpc.legalCorpus.documentCitations.useQuery({ documentId: previewing ?? 1 }, { enabled: isAuthenticated && previewing !== null });
 
-  if (!isAuthenticated) return <div className="grid min-h-screen place-items-center bg-[#fbf8f1] p-5"><Card className="legal-surface max-w-md"><CardContent className="p-8 text-center"><p className="text-lg font-extrabold text-[#284458]">Tu archivo legal es privado.</p><p className="mt-2 text-sm leading-6 text-slate-500">Inicia sesión para acceder a tus documentos y versiones guardadas.</p><Button onClick={() => navigate("/")} className="legal-button-primary mt-6 rounded-xl text-white">Volver al inicio</Button></CardContent></Card></div>;
+  if (!isAuthenticated) {
+    return <div className="grid min-h-screen place-items-center bg-[#fbf8f1] p-5"><Card className="legal-surface max-w-md"><CardContent className="p-8 text-center"><p className="text-lg font-extrabold text-[#284458]">Tu archivo legal es privado.</p><p className="mt-2 text-sm leading-6 text-slate-500">Inicia sesión para acceder a tus documentos y versiones guardadas.</p><Button onClick={() => navigate("/")} className="legal-button-primary mt-6 rounded-xl text-white">Volver al inicio</Button></CardContent></Card></div>;
+  }
 
-  const handleDownload = async (doc: any) => { try { await downloadBlob(await fetch(`/api/download-doc/${doc.id}`), `${doc.documentTitle}.docx`); toast.success("Documento descargado."); } catch (error) { toast.error(error instanceof Error ? error.message : "Error descargando documento"); } };
-  const handleRegenerate = async (doc: any) => { setRegenerating(doc.id); try { const response = await fetch("/api/generate-doc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ templateId: doc.templateId, jurisdictionId: doc.jurisdictionId || "pe", formData: safeFormData(doc.formData) }) }); await downloadBlob(response, `${doc.templateName}.docx`); await historyQuery.refetch(); await analyticsQuery.refetch(); toast.success("Documento regenerado y guardado como una nueva versión."); } catch (error) { toast.error(error instanceof Error ? error.message : "Error regenerando documento"); } finally { setRegenerating(null); } };
+  const handleDownload = async (doc: any) => {
+    try {
+      await downloadBlob(await fetch(`/api/download-doc/${doc.id}`), `${doc.documentTitle}.docx`);
+      toast.success("Documento descargado.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Error descargando documento");
+    }
+  };
+
+  const handleRegenerate = async (doc: any) => {
+    setRegenerating(doc.id);
+    try {
+      const response = await fetch("/api/generate-doc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templateId: doc.templateId, jurisdictionId: doc.jurisdictionId || "pe", formData: safeFormData(doc.formData) }),
+      });
+      await downloadBlob(response, `${doc.templateName}.docx`);
+      await historyQuery.refetch();
+      await analyticsQuery.refetch();
+      toast.success("Documento regenerado y guardado como una nueva versión.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Error regenerando documento");
+    } finally {
+      setRegenerating(null);
+    }
+  };
+
   const analytics = analyticsQuery.data;
 
   return <div className="min-h-screen bg-[#fbf8f1] text-[#102a43]">
     <header className="border-b border-[#e8dec9] bg-[#fbf8f1]/92 backdrop-blur-xl"><div className="container flex min-h-[5.35rem] items-center justify-between gap-4 py-4"><button type="button" onClick={() => navigate("/")} aria-label="Volver a LegalDoc"><BrandMark /></button><Button onClick={() => navigate("/catalogo")} className="legal-button-primary rounded-xl text-white"><FileText className="mr-2 h-4 w-4" />Nuevo documento</Button></div></header>
-    <main className="container py-8 sm:py-10 lg:py-12"><button type="button" onClick={() => navigate("/")} className="mb-6 inline-flex items-center text-sm font-bold text-[#607483] transition hover:text-[#8c6b35]"><ArrowLeft className="mr-2 h-4 w-4" />Inicio</button><section className="border-b border-[#dfcfb4] pb-8"><p className="legal-kicker">Archivo privado</p><div className="mt-3 flex flex-col justify-between gap-5 lg:flex-row lg:items-end"><div><h1 className="font-display text-5xl font-semibold tracking-[-.05em] text-[#102a43] sm:text-6xl">Tu práctica, ordenada.</h1><p className="mt-4 max-w-xl leading-7 text-slate-600">Consulta borradores, revisa versiones y vuelve a descargar los documentos de tu espacio de trabajo.</p></div><div className="flex items-center gap-2 rounded-xl border border-[#d8c49e] bg-[#fffaf0] px-3 py-2 text-xs font-bold text-[#5e724f]"><ShieldCheck className="h-4 w-4" />Espacio personal · Perú</div></div></section>
+    <main className="container py-8 sm:py-10 lg:py-12">
+      <button type="button" onClick={() => navigate("/")} className="mb-6 inline-flex items-center text-sm font-bold text-[#607483] transition hover:text-[#8c6b35]"><ArrowLeft className="mr-2 h-4 w-4" />Inicio</button>
+      <section className="border-b border-[#dfcfb4] pb-8"><p className="legal-kicker">Archivo privado</p><div className="mt-3 flex flex-col justify-between gap-5 lg:flex-row lg:items-end"><div><h1 className="font-display text-5xl font-semibold tracking-[-.05em] text-[#102a43] sm:text-6xl">Tu práctica, ordenada.</h1><p className="mt-4 max-w-xl leading-7 text-slate-600">Consulta borradores, revisa versiones y vuelve a descargar los documentos de tu espacio de trabajo.</p></div><div className="flex items-center gap-2 rounded-xl border border-[#d8c49e] bg-[#fffaf0] px-3 py-2 text-xs font-bold text-[#5e724f]"><ShieldCheck className="h-4 w-4" />Espacio personal · Perú</div></div></section>
       <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><Metric label="Generados" value={analytics?.documentsGenerated} icon={FileText} tone="gold" /><Metric label="Descargas" value={analytics?.downloads} icon={Download} tone="green" /><Metric label="Ediciones" value={analytics?.edits} icon={FolderClock} tone="navy" /><div className="legal-surface rounded-2xl p-5"><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-[#f1eadc] text-[#8c6b35]"><BarChart3 className="h-5 w-5" /></div><div><p className="text-xs font-extrabold uppercase tracking-[.14em] text-slate-500">Jurisdicción</p><p className="mt-1 text-lg font-extrabold text-[#284458]">Perú</p></div></div></div></section>
-      <div className="mt-7 flex items-start gap-3 rounded-2xl border border-[#d8c49e] bg-[#f8efd9] p-4 text-sm leading-6 text-[#4d6170]"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#8c6b35]" /><p><strong className="text-[#284458]">Control de versiones.</strong> Cada documento conserva la jurisdicción y el contenido con el que fue generado. Revisa siempre los datos antes de utilizarlo.</p></div>
-      <section className="mt-8">{historyQuery.isLoading ? <div className="py-16 text-center"><Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-[#8c6b35]" /><p className="text-sm text-slate-500">Abriendo tu archivo...</p></div> : !historyQuery.data?.length ? <div className="legal-surface rounded-2xl px-6 py-16 text-center"><div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#e7f0ea] text-[#1d5b4d]"><FileText className="h-6 w-6" /></div><h2 className="mt-5 text-xl font-extrabold text-[#284458]">Aún no hay documentos en tu archivo</h2><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">Tu primer borrador aparecerá aquí cuando completes una plantilla del catálogo.</p><Button onClick={() => navigate("/catalogo")} className="legal-button-primary mt-6 rounded-xl text-white">Explorar catálogo</Button></div> : <div className="space-y-4">{historyQuery.data.map((doc: any, index) => { const isPreview = previewing === doc.id; return <article key={doc.id} className="legal-surface overflow-hidden rounded-2xl"><div className="flex flex-col justify-between gap-4 border-b border-[#e6dbc7] px-5 py-5 sm:flex-row sm:items-start sm:px-6"><div className="flex gap-4"><span className="font-display text-4xl text-[#d0b176]">{String(index + 1).padStart(2, "0")}</span><div><h2 className="text-lg font-extrabold text-[#284458]">{doc.documentTitle}</h2><p className="mt-1 text-sm text-slate-500">{doc.templateName} · {format(new Date(doc.createdAt), "d 'de' MMMM 'de' yyyy", { locale: es })}</p></div></div><div className="flex flex-wrap gap-2"><Badge className="bg-[#e8f0eb] text-[.65rem] font-extrabold uppercase tracking-[.1em] text-[#32604e] hover:bg-[#e8f0eb]">Perú</Badge><Badge variant="outline" className="border-[#d8c49e] bg-[#fffaf0] text-[.65rem] font-extrabold uppercase tracking-[.1em] text-[#755725]">{doc.templateId}</Badge></div></div><div className="px-5 py-5 sm:px-6"><div className="rounded-xl border border-[#e6dbc7] bg-[#fffdf8]/75 p-4"><p className="text-xs font-extrabold uppercase tracking-[.13em] text-[#8c6b35]">Contexto ingresado</p><pre className="mt-3 max-h-28 overflow-y-auto whitespace-pre-wrap font-mono text-xs leading-5 text-[#536979]">{JSON.stringify(safeFormData(doc.formData), null, 2)}</pre></div>{isPreview && <article className="legal-paper mt-4 max-h-80 overflow-y-auto rounded-xl border border-[#e6dbc7] p-5 font-serif text-base leading-8 text-[#354b5b] whitespace-pre-wrap">{doc.generatedContent}</article>}<div className="mt-4 grid gap-2 sm:grid-cols-3"><Button onClick={() => setPreviewing(isPreview ? null : doc.id)} variant="outline" className="rounded-xl border-[#cdbb96] text-[#284458] hover:bg-[#f4ecdd]"><Eye className="mr-2 h-4 w-4" />{isPreview ? "Ocultar vista" : "Ver borrador"}</Button><Button onClick={() => handleDownload(doc)} variant="outline" className="rounded-xl border-[#cdbb96] text-[#284458] hover:bg-[#f4ecdd]"><Download className="mr-2 h-4 w-4" />Descargar Word</Button><Button onClick={() => handleRegenerate(doc)} disabled={regenerating === doc.id} className="legal-button-primary rounded-xl text-white">{regenerating === doc.id ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Regenerando...</> : <><RotateCcw className="mr-2 h-4 w-4" />Regenerar</>}</Button></div></div></article>; })}</div>}</section>
+      <div className="mt-7 flex items-start gap-3 rounded-2xl border border-[#d8c49e] bg-[#f8efd9] p-4 text-sm leading-6 text-[#4d6170]"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#8c6b35]" /><p><strong className="text-[#284458]">Control de versiones.</strong> Cada documento conserva la jurisdicción y el contenido con el que fue generado. Las fuentes se muestran solo si hubo una versión aprobada del corpus vinculada al borrador.</p></div>
+      <section className="mt-8">
+        {historyQuery.isLoading ? <div className="py-16 text-center"><Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-[#8c6b35]" /><p className="text-sm text-slate-500">Abriendo tu archivo...</p></div> : !historyQuery.data?.length ? <div className="legal-surface rounded-2xl px-6 py-16 text-center"><div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#e7f0ea] text-[#1d5b4d]"><FileText className="h-6 w-6" /></div><h2 className="mt-5 text-xl font-extrabold text-[#284458]">Aún no hay documentos en tu archivo</h2><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">Tu primer borrador aparecerá aquí cuando completes una plantilla del catálogo.</p><Button onClick={() => navigate("/catalogo")} className="legal-button-primary mt-6 rounded-xl text-white">Explorar catálogo</Button></div> : <div className="space-y-4">{historyQuery.data.map((doc: any, index) => {
+          const isPreview = previewing === doc.id;
+          const citations = isPreview ? citationsQuery.data ?? [] : [];
+          return <article key={doc.id} className="legal-surface overflow-hidden rounded-2xl"><div className="flex flex-col justify-between gap-4 border-b border-[#e6dbc7] px-5 py-5 sm:flex-row sm:items-start sm:px-6"><div className="flex gap-4"><span className="font-display text-4xl text-[#d0b176]">{String(index + 1).padStart(2, "0")}</span><div><h2 className="text-lg font-extrabold text-[#284458]">{doc.documentTitle}</h2><p className="mt-1 text-sm text-slate-500">{doc.templateName} · {format(new Date(doc.createdAt), "d 'de' MMMM 'de' yyyy", { locale: es })}</p></div></div><div className="flex flex-wrap gap-2"><Badge className="bg-[#e8f0eb] text-[.65rem] font-extrabold uppercase tracking-[.1em] text-[#32604e] hover:bg-[#e8f0eb]">Perú</Badge><Badge variant="outline" className="border-[#d8c49e] bg-[#fffaf0] text-[.65rem] font-extrabold uppercase tracking-[.1em] text-[#755725]">{doc.templateId}</Badge></div></div><div className="px-5 py-5 sm:px-6"><div className="rounded-xl border border-[#e6dbc7] bg-[#fffdf8]/75 p-4"><p className="text-xs font-extrabold uppercase tracking-[.13em] text-[#8c6b35]">Contexto ingresado</p><pre className="mt-3 max-h-28 overflow-y-auto whitespace-pre-wrap font-mono text-xs leading-5 text-[#536979]">{JSON.stringify(safeFormData(doc.formData), null, 2)}</pre></div>{isPreview && <><article className="legal-paper mt-4 max-h-80 overflow-y-auto rounded-xl border border-[#e6dbc7] p-5 font-serif text-base leading-8 text-[#354b5b] whitespace-pre-wrap">{doc.generatedContent}</article><aside className={`mt-4 rounded-xl border p-4 text-sm ${citations.length ? "border-[#bfd8cd] bg-[#edf7f1]" : "border-[#e2c89e] bg-[#fff5df]"}`}>{citationsQuery.isLoading ? <p className="flex items-center gap-2 font-semibold text-[#48665b]"><Loader2 className="h-4 w-4 animate-spin" />Cargando fuentes verificables…</p> : citations.length ? <><p className="font-extrabold text-[#1d5b4d]">Fuentes verificables vinculadas</p><ul className="mt-2 space-y-2">{citations.map((citation) => <li key={citation.id}><a href={citation.sourceUrl} target="_blank" rel="noreferrer" className="font-bold text-[#1d5b4d] underline decoration-[#7ca995]/60 underline-offset-2 hover:text-[#0f4d3e]">{citation.citationLabel}</a></li>)}</ul><p className="mt-3 text-xs leading-5 text-[#48665b]">El Word conserva estas referencias en un anexo separado. Revisa vigencia y pertinencia antes de usarlo.</p></> : <><p className="font-extrabold text-[#805524]">Sin fuente aprobada vinculada</p><p className="mt-1 leading-5 text-[#6b5d4a]">Este documento se generó sin una versión oficial aprobada aplicable en el corpus. No debe tratarse como una cita normativa verificada.</p></>}</aside></>}<div className="mt-4 grid gap-2 sm:grid-cols-3"><Button onClick={() => setPreviewing(isPreview ? null : doc.id)} variant="outline" className="rounded-xl border-[#cdbb96] text-[#284458] hover:bg-[#f4ecdd]"><Eye className="mr-2 h-4 w-4" />{isPreview ? "Ocultar vista" : "Ver borrador"}</Button><Button onClick={() => handleDownload(doc)} variant="outline" className="rounded-xl border-[#cdbb96] text-[#284458] hover:bg-[#f4ecdd]"><Download className="mr-2 h-4 w-4" />Descargar Word</Button><Button onClick={() => handleRegenerate(doc)} disabled={regenerating === doc.id} className="legal-button-primary rounded-xl text-white">{regenerating === doc.id ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Regenerando...</> : <><RotateCcw className="mr-2 h-4 w-4" />Regenerar</>}</Button></div></div></article>;
+        })}</div>}
+      </section>
     </main>
   </div>;
 }

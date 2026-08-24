@@ -6,8 +6,11 @@ vi.mock("./_core/sdk", () => ({ sdk: { authenticateRequest: vi.fn() } }));
 vi.mock("openai", () => ({ OpenAI: vi.fn().mockImplementation(() => ({ chat: { completions: { create: vi.fn().mockResolvedValue({ choices: [{ message: { content: "Contenido generado para pruebas." } }] }) } } })) }));
 vi.mock("./db", () => ({
   getDocumentById: vi.fn(),
+  getDocumentLegalCitations: vi.fn(),
   recordUsageEvent: vi.fn(),
   saveGeneratedDocument: vi.fn(),
+  getApprovedLegalReferencesForTemplate: vi.fn(),
+  createLegalCitation: vi.fn(),
 }));
 vi.mock("./storage", () => ({ storagePut: vi.fn() }));
 
@@ -30,8 +33,11 @@ app.use("/api", legalCorpusUploadRouter);
 beforeEach(() => {
   vi.mocked(sdk.authenticateRequest).mockReset();
   vi.mocked(db.getDocumentById).mockReset();
+  vi.mocked(db.getDocumentLegalCitations).mockResolvedValue([]);
   vi.mocked(db.recordUsageEvent).mockReset();
   vi.mocked(db.saveGeneratedDocument).mockReset();
+  vi.mocked(db.getApprovedLegalReferencesForTemplate).mockResolvedValue([]);
+  vi.mocked(db.createLegalCitation).mockReset();
   vi.mocked(storagePut).mockReset();
 });
 
@@ -51,6 +57,29 @@ describe("document HTTP routes", () => {
     expect(response.headers["x-jurisdiction-id"]).toBe("pe");
     expect(Number(response.headers["content-length"])).toBeGreaterThan(100);
     expect(db.recordUsageEvent).toHaveBeenCalledWith({ userId: 7, jurisdictionId: "pe", templateId: "carta-notarial-deuda", eventType: "document_generated" });
+  });
+
+  it("vincula las versiones aprobadas consultadas al documento y expone su trazabilidad", async () => {
+    vi.mocked(sdk.authenticateRequest).mockResolvedValue(user as any);
+    vi.mocked(db.saveGeneratedDocument).mockResolvedValue({ insertId: 77 } as any);
+    vi.mocked(db.getApprovedLegalReferencesForTemplate).mockResolvedValue([{
+      instrumentId: 4,
+      instrumentTitle: "Código Civil",
+      normIdentifier: "Decreto Legislativo N.° 295",
+      subject: "Civil",
+      versionId: 15,
+      versionLabel: "Texto actualizado al 2026-01-01",
+      versionAsOf: new Date("2026-01-01T00:00:00.000Z"),
+      sourceUrl: "https://www.gob.pe/institucion/minjus/normas-legales",
+      contentMarkdown: "## Artículo verificado\nTexto incorporado al corpus.",
+    }]);
+
+    const response = await request(app).post("/api/generate-doc").send({ templateId: "carta-notarial-deuda", jurisdictionId: "pe", formData: { debtorName: "Persona de prueba" } });
+
+    expect(response.status).toBe(200);
+    expect(db.createLegalCitation).toHaveBeenCalledWith(expect.objectContaining({ generatedDocumentId: 77, instrumentVersionId: 15, citationLabel: expect.stringContaining("Código Civil") }));
+    const references = JSON.parse(Buffer.from(response.headers["x-legal-citations"], "base64").toString("utf8"));
+    expect(references).toEqual([expect.objectContaining({ instrumentVersionId: 15, sourceUrl: "https://www.gob.pe/institucion/minjus/normas-legales" })]);
   });
 
   it("rechaza una jurisdicción que aún no está habilitada", async () => {

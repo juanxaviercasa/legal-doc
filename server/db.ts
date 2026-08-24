@@ -1,4 +1,4 @@
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, ne } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createHash } from "node:crypto";
 import {
@@ -203,6 +203,13 @@ export async function createLegalSource(source: InsertLegalSource) {
   return result;
 }
 
+export async function markLegalSourceChecked(sourceId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(legalSources).set({ lastCheckedAt: new Date(), updatedAt: new Date() }).where(eq(legalSources.id, sourceId));
+  return (await db.select().from(legalSources).where(eq(legalSources.id, sourceId)).limit(1))[0];
+}
+
 export async function getLegalInstruments(jurisdictionId = "pe") {
   const db = await getDb();
   if (!db) return [];
@@ -213,6 +220,17 @@ export async function getLegalInstrumentVersions(instrumentId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(legalInstrumentVersions).where(eq(legalInstrumentVersions.instrumentId, instrumentId)).orderBy(desc(legalInstrumentVersions.versionAsOf));
+}
+
+export async function getPendingLegalInstrumentVersions(jurisdictionId = "pe") {
+  const db = await getDb();
+  if (!db) return [];
+  const instruments = await db.select().from(legalInstruments).where(eq(legalInstruments.jurisdictionId, jurisdictionId));
+  const instrumentMap = new Map(instruments.map((instrument) => [instrument.id, instrument]));
+  const versions = await db.select().from(legalInstrumentVersions).where(eq(legalInstrumentVersions.approvalStatus, "pending_review"));
+  return versions
+    .filter((version) => instrumentMap.has(version.instrumentId))
+    .map((version) => ({ ...version, instrumentTitle: instrumentMap.get(version.instrumentId)!.title }));
 }
 
 export async function createLegalInstrument(instrument: InsertLegalInstrument) {
@@ -235,8 +253,22 @@ export async function approveLegalInstrumentVersion(input: { versionId: number; 
   if (!db) throw new Error("Database not available");
   const version = (await db.select().from(legalInstrumentVersions).where(eq(legalInstrumentVersions.id, input.versionId)).limit(1))[0];
   if (!version) throw new Error("Versión legal no encontrada");
+  await db.update(legalInstrumentVersions).set({ approvalStatus: "superseded" }).where(and(
+    eq(legalInstrumentVersions.instrumentId, version.instrumentId),
+    eq(legalInstrumentVersions.approvalStatus, "approved"),
+    ne(legalInstrumentVersions.id, input.versionId),
+  ));
   await db.update(legalInstrumentVersions).set({ approvalStatus: "approved", legalStatus: input.legalStatus, reviewedByUserId: input.reviewerId, reviewedAt: new Date(), changeSummary: input.changeSummary ?? version.changeSummary }).where(eq(legalInstrumentVersions.id, input.versionId));
   await db.update(legalInstruments).set({ status: "active", updatedAt: new Date() }).where(eq(legalInstruments.id, version.instrumentId));
+  return (await db.select().from(legalInstrumentVersions).where(eq(legalInstrumentVersions.id, input.versionId)).limit(1))[0];
+}
+
+export async function rejectLegalInstrumentVersion(input: { versionId: number; reviewerId: number; reason?: string | null }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const version = (await db.select().from(legalInstrumentVersions).where(eq(legalInstrumentVersions.id, input.versionId)).limit(1))[0];
+  if (!version) throw new Error("Versión legal no encontrada");
+  await db.update(legalInstrumentVersions).set({ approvalStatus: "rejected", reviewedByUserId: input.reviewerId, reviewedAt: new Date(), changeSummary: input.reason ?? version.changeSummary }).where(eq(legalInstrumentVersions.id, input.versionId));
   return (await db.select().from(legalInstrumentVersions).where(eq(legalInstrumentVersions.id, input.versionId)).limit(1))[0];
 }
 
@@ -247,6 +279,85 @@ export async function getApprovedLegalVersions(jurisdictionId = "pe") {
   const instrumentIds = new Set(instruments.map((instrument) => instrument.id));
   const versions = await db.select().from(legalInstrumentVersions).where(eq(legalInstrumentVersions.approvalStatus, "approved"));
   return versions.filter((version) => instrumentIds.has(version.instrumentId));
+}
+
+export type ApprovedLegalReference = {
+  instrumentId: number;
+  instrumentTitle: string;
+  normIdentifier: string | null;
+  subject: string | null;
+  versionId: number;
+  versionLabel: string;
+  versionAsOf: Date;
+  sourceUrl: string;
+  contentMarkdown: string;
+};
+
+type VersionWithEffectiveDate = { id: number; instrumentId: number; versionAsOf: Date; reviewedAt: Date | null };
+
+/** Conserva la versión aprobada más reciente por instrumento para datos históricos sin depurar. */
+export function selectCurrentApprovedVersions<T extends VersionWithEffectiveDate>(versions: T[]): T[] {
+  const currentByInstrument = new Map<number, T>();
+  for (const version of versions) {
+    const current = currentByInstrument.get(version.instrumentId);
+    const isNewer = !current
+      || version.versionAsOf.getTime() > current.versionAsOf.getTime()
+      || (version.versionAsOf.getTime() === current.versionAsOf.getTime() && (version.reviewedAt?.getTime() ?? 0) > (current.reviewedAt?.getTime() ?? 0))
+      || (version.versionAsOf.getTime() === current.versionAsOf.getTime() && (version.reviewedAt?.getTime() ?? 0) === (current.reviewedAt?.getTime() ?? 0) && version.id > current.id);
+    if (isNewer) currentByInstrument.set(version.instrumentId, version);
+  }
+  return Array.from(currentByInstrument.values());
+}
+
+const templateSubjects: Record<string, string[]> = {
+  "carta-notarial-deuda": ["civil", "notarial"],
+  "poder-notarial": ["civil", "notarial"],
+  "contrato-prestamo": ["civil"],
+  "demanda-civil": ["civil", "procesal civil"],
+  "contrato-compraventa": ["civil"],
+  "acta-transaccion": ["civil", "notarial"],
+  "contrato-trabajo": ["laboral"],
+  "acuerdo-confidencialidad": ["civil", "datos personales"],
+  "poder-especial-litigar": ["procesal civil", "notarial", "civil"],
+};
+
+/**
+ * Recupera únicamente versiones aprobadas y vigentes/modificadas que guardan
+ * relación expresa con la materia de una plantilla. No completa lagunas con
+ * conocimiento no verificado: una lista vacía obliga al modelo a marcar la
+ * referencia como pendiente de revisión.
+ */
+export async function getApprovedLegalReferencesForTemplate(jurisdictionId: string, templateId: string): Promise<ApprovedLegalReference[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  const targetSubjects = templateSubjects[templateId] ?? [];
+  if (!targetSubjects.length) return [];
+  const instruments = await db.select().from(legalInstruments).where(and(eq(legalInstruments.jurisdictionId, jurisdictionId), eq(legalInstruments.status, "active")));
+  const relevantInstruments = instruments.filter((instrument) => {
+    const searchable = `${instrument.subject ?? ""} ${instrument.documentType} ${instrument.title}`.toLocaleLowerCase("es-PE");
+    return targetSubjects.some((subject) => searchable.includes(subject));
+  });
+  if (!relevantInstruments.length) return [];
+
+  const instrumentMap = new Map(relevantInstruments.map((instrument) => [instrument.id, instrument]));
+  const approvedVersions = await db.select().from(legalInstrumentVersions).where(eq(legalInstrumentVersions.approvalStatus, "approved"));
+  const currentVersions = selectCurrentApprovedVersions(approvedVersions
+    .filter((version) => instrumentMap.has(version.instrumentId) && (version.legalStatus === "vigente" || version.legalStatus === "modificado")));
+  return currentVersions.map((version) => {
+      const instrument = instrumentMap.get(version.instrumentId)!;
+      return {
+        instrumentId: instrument.id,
+        instrumentTitle: instrument.title,
+        normIdentifier: instrument.normIdentifier,
+        subject: instrument.subject,
+        versionId: version.id,
+        versionLabel: version.versionLabel,
+        versionAsOf: version.versionAsOf,
+        sourceUrl: version.sourceUrl,
+        contentMarkdown: version.contentMarkdown,
+      };
+    });
 }
 
 export async function createLegalCitation(input: typeof legalCitations.$inferInsert) {
