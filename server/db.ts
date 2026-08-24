@@ -8,6 +8,8 @@ import {
   InsertLegalSource,
   InsertLegalMatter,
   InsertMatterParty,
+  InsertMatterProceduralEvent,
+  InsertMatterProceduralProfile,
   InsertMatterTask,
   InsertMatterTimelineEvent,
   InsertUser,
@@ -21,6 +23,8 @@ import {
   legalSources,
   matterAssignments,
   matterParties,
+  matterProceduralEvents,
+  matterProceduralProfiles,
   matterTasks,
   matterTimelineEvents,
   usageEvents,
@@ -320,6 +324,73 @@ export async function archiveMatter(matterId: number, userId: number) {
   await db.update(legalMatters).set({ status: "closed", closedAt: new Date(), updatedAt: new Date() }).where(eq(legalMatters.id, matterId));
   await db.insert(matterTimelineEvents).values({ matterId, createdByUserId: userId, eventType: "note", title: "Asunto archivado", content: "El propietario archivó este asunto. El historial se conserva sin eliminación destructiva." });
   return getMatterById(matterId, userId);
+}
+
+type ProceduralProfileUpdate = Partial<Pick<InsertMatterProceduralProfile, "caseNumber" | "authority" | "venue" | "procedureType" | "proceduralStage" | "sourceReference" | "sourceUrl" | "verificationStatus" | "lastVerifiedAt" | "updatedByUserId">>;
+
+export async function getMatterProceduralData(matterId: number, userId: number) {
+  const db = await getDb();
+  if (!db || !(await getMatterAccess(matterId, userId))) return undefined;
+  const [profile, events] = await Promise.all([
+    db.select().from(matterProceduralProfiles).where(eq(matterProceduralProfiles.matterId, matterId)).limit(1),
+    db.select().from(matterProceduralEvents).where(eq(matterProceduralEvents.matterId, matterId)).orderBy(matterProceduralEvents.eventAt),
+  ]);
+  return { profile: profile[0] ?? null, events };
+}
+
+export async function upsertMatterProceduralProfile(matterId: number, userId: number, input: ProceduralProfileUpdate) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await ensureMatterEditor(matterId, userId);
+  const existing = (await db.select().from(matterProceduralProfiles).where(eq(matterProceduralProfiles.matterId, matterId)).limit(1))[0];
+  const values = { ...input, updatedByUserId: userId, lastVerifiedAt: input.verificationStatus === "confirmed" ? new Date() : input.lastVerifiedAt };
+  if (existing) {
+    await db.update(matterProceduralProfiles).set(values).where(eq(matterProceduralProfiles.matterId, matterId));
+  } else {
+    await db.insert(matterProceduralProfiles).values({ matterId, ...values, verificationStatus: input.verificationStatus ?? "pending_confirmation" });
+  }
+  return (await db.select().from(matterProceduralProfiles).where(eq(matterProceduralProfiles.matterId, matterId)).limit(1))[0];
+}
+
+export async function createMatterProceduralEvent(input: Omit<InsertMatterProceduralEvent, "id" | "createdAt" | "updatedAt" | "createdByUserId">, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await ensureMatterEditor(input.matterId, userId);
+  const result = await db.insert(matterProceduralEvents).values({ ...input, createdByUserId: userId });
+  const eventId = Number(result[0].insertId);
+  await db.insert(matterTimelineEvents).values({ matterId: input.matterId, createdByUserId: userId, eventType: "note", title: `Evento procesal registrado: ${input.title}`, content: `Fecha declarada: ${input.eventAt.toISOString()}. Estado: ${input.verificationStatus ?? "pending_confirmation"}.` });
+  return (await db.select().from(matterProceduralEvents).where(eq(matterProceduralEvents.id, eventId)).limit(1))[0];
+}
+
+export async function updateMatterProceduralEvent(input: { eventId: number; userId: number; verificationStatus?: "pending_confirmation" | "confirmed" | "superseded"; title?: string; eventAt?: Date; sourceType?: "manual" | "official_notification" | "party_communication" | "other"; sourceReference?: string | null; sourceUrl?: string | null; notes?: string | null }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const event = (await db.select().from(matterProceduralEvents).where(eq(matterProceduralEvents.id, input.eventId)).limit(1))[0];
+  if (!event) throw new Error("Evento procesal no encontrado");
+  await ensureMatterEditor(event.matterId, input.userId);
+  const { eventId, userId, ...changes } = input;
+  await db.update(matterProceduralEvents).set({ ...changes, updatedAt: new Date() }).where(eq(matterProceduralEvents.id, eventId));
+  return (await db.select().from(matterProceduralEvents).where(eq(matterProceduralEvents.id, eventId)).limit(1))[0];
+}
+
+export async function getUpcomingProceduralEvents(userId: number, days = 14) {
+  const db = await getDb();
+  if (!db) return [];
+  const matters = await getUserMatters(userId);
+  const matterMap = new Map(matters.map((matter) => [matter.id, matter]));
+  const events = await db.select().from(matterProceduralEvents).orderBy(matterProceduralEvents.eventAt);
+  const until = new Date();
+  until.setUTCDate(until.getUTCDate() + days);
+  return events.filter((event) => event.eventAt >= new Date() && event.eventAt <= until && matterMap.has(event.matterId)).map((event) => ({ ...event, matterTitle: matterMap.get(event.matterId)!.title }));
+}
+
+export async function getProceduralCalendarEvents(userId: number, from: Date, to: Date) {
+  const db = await getDb();
+  if (!db) return [];
+  const matters = await getUserMatters(userId);
+  const matterMap = new Map(matters.map((matter) => [matter.id, matter]));
+  const events = await db.select().from(matterProceduralEvents).orderBy(matterProceduralEvents.eventAt);
+  return events.filter((event) => event.eventAt >= from && event.eventAt <= to && matterMap.has(event.matterId)).map((event) => ({ ...event, matterTitle: matterMap.get(event.matterId)!.title }));
 }
 
 export async function recordUsageEvent(event: InsertUsageEvent) {

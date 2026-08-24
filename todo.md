@@ -133,9 +133,13 @@ Nota de producto: LegalDoc se mantiene especialista en Perú en esta versión. L
 - [x] Construir índice y detalle responsive de Asuntos para el espacio privado
 - [x] Añadir responsables o asignados reales al modelo de Asuntos y exponerlos con permisos seguros
 - [x] Implementar archivado seguro de Asuntos con validación de propiedad, interfaz y pruebas
-- [ ] Añadir agenda procesal con eventos, audiencias, vencimientos y fuente de fecha
-- [ ] Implementar expediente, cronología procesal y alertas de próxima acción sin automatización no autorizada
-- [ ] Crear experiencia de Mesa procesal con calendario, filtros y confirmación de fechas
+- [x] Añadir agenda procesal con eventos, audiencias, vencimientos y fuente de fecha
+- [x] Implementar expediente, cronología procesal y alertas de próxima acción sin automatización no autorizada
+- [x] Crear experiencia de Mesa procesal con calendario, filtros y confirmación de fechas
+- [x] Modelar ficha de expediente con órgano, número, etapa, última verificación y fuente declarada
+- [x] Mantener cada evento procesal como fecha confirmable con origen, referencia y estado de verificación
+- [x] Implementar una vista de calendario real para la Mesa procesal con eventos y estados de verificación
+- [x] Añadir filtros de tipo, confirmación y rango temporal con pruebas y validación responsive
 - [ ] Exponer búsqueda de normas aprobadas por texto, materia, identificador, vigencia y fuente
 - [ ] Vincular resultados de investigación y citas a Asuntos y documentos
 - [ ] Validar TypeScript, pruebas, build y experiencia responsive por cada hito

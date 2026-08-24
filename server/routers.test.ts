@@ -18,6 +18,12 @@ vi.mock("./db", () => ({
   addMatterAssignee: vi.fn(),
   removeMatterAssignee: vi.fn(),
   archiveMatter: vi.fn(),
+  getMatterProceduralData: vi.fn(),
+  upsertMatterProceduralProfile: vi.fn(),
+  createMatterProceduralEvent: vi.fn(),
+  updateMatterProceduralEvent: vi.fn(),
+  getUpcomingProceduralEvents: vi.fn(),
+  getProceduralCalendarEvents: vi.fn(),
   getApprovedLegalVersions: vi.fn(),
   getDocumentLegalCitations: vi.fn(),
   getLegalSources: vi.fn(),
@@ -105,6 +111,26 @@ describe("matters tRPC procedures", () => {
     await appRouter.createCaller(ctx).matters.archive({ matterId: 5 });
     expect(db.addMatterAssignee).toHaveBeenCalledWith({ matterId: 5, assigneeEmail: "colega@estudio.pe", role: "editor", ownerUserId: 7 });
     expect(db.archiveMatter).toHaveBeenCalledWith(5, 7);
+  });
+
+  it("registra una fecha procesal con origen y la deja pendiente de confirmación", async () => {
+    vi.mocked(db.createMatterProceduralEvent).mockResolvedValue({ id: 31, matterId: 5, verificationStatus: "pending_confirmation" } as any);
+    await appRouter.createCaller(ctx).matters.addProceduralEvent({ matterId: 5, title: "Audiencia única", eventType: "hearing", eventAt: "2026-09-03T15:00:00.000Z", isDeadline: false, sourceType: "official_notification", sourceReference: "Resolución N.° 04", verificationStatus: "pending_confirmation" });
+    expect(db.createMatterProceduralEvent).toHaveBeenCalledWith(expect.objectContaining({ matterId: 5, eventAt: expect.any(Date), sourceType: "official_notification", verificationStatus: "pending_confirmation" }), 7);
+  });
+
+  it("expone próximos eventos como recordatorios manuales del usuario autenticado", async () => {
+    vi.mocked(db.getUpcomingProceduralEvents).mockResolvedValue([{ id: 31, matterTitle: "Caso laboral", eventType: "deadline" }] as any);
+    const result = await appRouter.createCaller(ctx).matters.upcomingProceduralEvents({ days: 14 });
+    expect(result[0].matterTitle).toBe("Caso laboral");
+    expect(db.getUpcomingProceduralEvents).toHaveBeenCalledWith(7, 14);
+  });
+
+  it("solicita el calendario por rango sin exponer eventos de terceros", async () => {
+    vi.mocked(db.getProceduralCalendarEvents).mockResolvedValue([{ id: 32, matterTitle: "Caso civil", eventType: "hearing" }] as any);
+    const result = await appRouter.createCaller(ctx).matters.proceduralCalendar({ from: "2026-09-01T00:00:00.000Z", to: "2026-09-30T23:59:59.000Z" });
+    expect(result[0].matterTitle).toBe("Caso civil");
+    expect(db.getProceduralCalendarEvents).toHaveBeenCalledWith(7, expect.any(Date), expect.any(Date));
   });
 });
 

@@ -136,6 +136,48 @@ export const matterTimelineEvents = mysqlTable("matter_timeline_events", {
 export type MatterTimelineEvent = typeof matterTimelineEvents.$inferSelect;
 export type InsertMatterTimelineEvent = typeof matterTimelineEvents.$inferInsert;
 
+/** Ficha procesal opcional: se completa y confirma por el profesional responsable. */
+export const matterProceduralProfiles = mysqlTable("matter_procedural_profiles", {
+  id: int("id").autoincrement().primaryKey(),
+  matterId: int("matterId").notNull().unique(),
+  caseNumber: varchar("caseNumber", { length: 128 }),
+  authority: varchar("authority", { length: 255 }),
+  venue: varchar("venue", { length: 255 }),
+  procedureType: varchar("procedureType", { length: 128 }),
+  proceduralStage: varchar("proceduralStage", { length: 128 }),
+  sourceReference: varchar("sourceReference", { length: 512 }),
+  sourceUrl: varchar("sourceUrl", { length: 2048 }),
+  verificationStatus: mysqlEnum("verificationStatus", ["pending_confirmation", "confirmed", "superseded"]).default("pending_confirmation").notNull(),
+  lastVerifiedAt: timestamp("lastVerifiedAt"),
+  updatedByUserId: int("updatedByUserId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MatterProceduralProfile = typeof matterProceduralProfiles.$inferSelect;
+export type InsertMatterProceduralProfile = typeof matterProceduralProfiles.$inferInsert;
+
+/** Hito procesal trazable. Toda fecha conserva su origen y no se presume como notificación válida. */
+export const matterProceduralEvents = mysqlTable("matter_procedural_events", {
+  id: int("id").autoincrement().primaryKey(),
+  matterId: int("matterId").notNull(),
+  title: varchar("title", { length: 512 }).notNull(),
+  eventType: mysqlEnum("eventType", ["filing", "hearing", "deadline", "notification", "status_update", "other"]).notNull(),
+  eventAt: timestamp("eventAt").notNull(),
+  isDeadline: boolean("isDeadline").default(false).notNull(),
+  sourceType: mysqlEnum("sourceType", ["manual", "official_notification", "party_communication", "other"]).default("manual").notNull(),
+  sourceReference: varchar("sourceReference", { length: 512 }),
+  sourceUrl: varchar("sourceUrl", { length: 2048 }),
+  verificationStatus: mysqlEnum("verificationStatus", ["pending_confirmation", "confirmed", "superseded"]).default("pending_confirmation").notNull(),
+  notes: text("notes"),
+  createdByUserId: int("createdByUserId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MatterProceduralEvent = typeof matterProceduralEvents.$inferSelect;
+export type InsertMatterProceduralEvent = typeof matterProceduralEvents.$inferInsert;
+
 /** Métricas agregadas de uso para orientar la evolución del producto. */
 export const usageEvents = mysqlTable("usage_events", {
   id: int("id").autoincrement().primaryKey(),

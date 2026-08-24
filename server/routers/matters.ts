@@ -5,6 +5,9 @@ import * as db from "../db";
 const matterStatus = z.enum(["intake", "active", "waiting_client", "on_hold", "closed"]);
 const taskStatus = z.enum(["open", "in_progress", "done", "cancelled"]);
 const priority = z.enum(["low", "normal", "high", "urgent"]);
+const proceduralEventType = z.enum(["filing", "hearing", "deadline", "notification", "status_update", "other"]);
+const proceduralSourceType = z.enum(["manual", "official_notification", "party_communication", "other"]);
+const verificationStatus = z.enum(["pending_confirmation", "confirmed", "superseded"]);
 
 const matterFields = {
   title: z.string().trim().min(3).max(255),
@@ -100,6 +103,20 @@ export const mattersRouter = router({
     assigneeUserId: z.number().int().positive(),
   })).mutation(({ ctx, input }) => db.removeMatterAssignee({ ...input, ownerUserId: ctx.user.id })),
   archive: protectedProcedure.input(z.object({ matterId: z.number().int().positive() })).mutation(({ ctx, input }) => db.archiveMatter(input.matterId, ctx.user.id)),
+  proceduralData: protectedProcedure.input(z.object({ matterId: z.number().int().positive() })).query(({ ctx, input }) => db.getMatterProceduralData(input.matterId, ctx.user.id)),
+  saveProceduralProfile: protectedProcedure.input(z.object({
+    matterId: z.number().int().positive(), caseNumber: z.string().trim().max(128).optional(), authority: z.string().trim().max(255).optional(), venue: z.string().trim().max(255).optional(),
+    procedureType: z.string().trim().max(128).optional(), proceduralStage: z.string().trim().max(128).optional(), sourceReference: z.string().trim().max(512).optional(), sourceUrl: z.string().url().max(2048).optional(), verificationStatus: verificationStatus.optional(),
+  })).mutation(({ ctx, input }) => { const { matterId, ...changes } = input; return db.upsertMatterProceduralProfile(matterId, ctx.user.id, changes); }),
+  addProceduralEvent: protectedProcedure.input(z.object({
+    matterId: z.number().int().positive(), title: z.string().trim().min(2).max(512), eventType: proceduralEventType, eventAt: z.string().datetime(), isDeadline: z.boolean().default(false),
+    sourceType: proceduralSourceType.default("manual"), sourceReference: z.string().trim().max(512).optional(), sourceUrl: z.string().url().max(2048).optional(), verificationStatus: verificationStatus.default("pending_confirmation"), notes: z.string().trim().max(20000).optional(),
+  })).mutation(({ ctx, input }) => db.createMatterProceduralEvent({ ...input, eventAt: new Date(input.eventAt) }, ctx.user.id)),
+  updateProceduralEvent: protectedProcedure.input(z.object({
+    eventId: z.number().int().positive(), title: z.string().trim().min(2).max(512).optional(), eventAt: z.string().datetime().optional(), sourceType: proceduralSourceType.optional(), sourceReference: z.string().trim().max(512).nullable().optional(), sourceUrl: z.string().url().max(2048).nullable().optional(), notes: z.string().trim().max(20000).nullable().optional(), verificationStatus: verificationStatus.optional(),
+  })).mutation(({ ctx, input }) => db.updateMatterProceduralEvent({ ...input, userId: ctx.user.id, eventAt: input.eventAt ? new Date(input.eventAt) : undefined })),
+  upcomingProceduralEvents: protectedProcedure.input(z.object({ days: z.number().int().min(1).max(60).default(14) }).optional()).query(({ ctx, input }) => db.getUpcomingProceduralEvents(ctx.user.id, input?.days ?? 14)),
+  proceduralCalendar: protectedProcedure.input(z.object({ from: z.string().datetime(), to: z.string().datetime() })).query(({ ctx, input }) => db.getProceduralCalendarEvents(ctx.user.id, new Date(input.from), new Date(input.to))),
   linkDocument: protectedProcedure.input(z.object({
     matterId: z.number().int().positive(),
     documentId: z.number().int().positive(),
