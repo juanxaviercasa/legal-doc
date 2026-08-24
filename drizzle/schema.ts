@@ -178,6 +178,22 @@ export const matterProceduralEvents = mysqlTable("matter_procedural_events", {
 export type MatterProceduralEvent = typeof matterProceduralEvents.$inferSelect;
 export type InsertMatterProceduralEvent = typeof matterProceduralEvents.$inferInsert;
 
+/** Resultado del corpus aprobado que un equipo decide conservar dentro de un Asunto. */
+export const matterLegalResearch = mysqlTable("matter_legal_research", {
+  id: int("id").autoincrement().primaryKey(),
+  matterId: int("matterId").notNull(),
+  instrumentVersionId: int("instrumentVersionId").notNull(),
+  citationLabel: varchar("citationLabel", { length: 512 }).notNull(),
+  sourceUrl: varchar("sourceUrl", { length: 2048 }).notNull(),
+  articleReference: varchar("articleReference", { length: 255 }),
+  note: text("note"),
+  addedByUserId: int("addedByUserId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [uniqueIndex("matter_legal_research_matter_version_unique").on(table.matterId, table.instrumentVersionId)]);
+
+export type MatterLegalResearch = typeof matterLegalResearch.$inferSelect;
+export type InsertMatterLegalResearch = typeof matterLegalResearch.$inferInsert;
+
 /** Métricas agregadas de uso para orientar la evolución del producto. */
 export const usageEvents = mysqlTable("usage_events", {
   id: int("id").autoincrement().primaryKey(),

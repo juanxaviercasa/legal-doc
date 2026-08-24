@@ -140,6 +140,10 @@ Nota de producto: LegalDoc se mantiene especialista en Perú en esta versión. L
 - [x] Mantener cada evento procesal como fecha confirmable con origen, referencia y estado de verificación
 - [x] Implementar una vista de calendario real para la Mesa procesal con eventos y estados de verificación
 - [x] Añadir filtros de tipo, confirmación y rango temporal con pruebas y validación responsive
-- [ ] Exponer búsqueda de normas aprobadas por texto, materia, identificador, vigencia y fuente
-- [ ] Vincular resultados de investigación y citas a Asuntos y documentos
-- [ ] Validar TypeScript, pruebas, build y experiencia responsive por cada hito
+- [x] Exponer búsqueda de normas aprobadas por texto, materia, identificador, vigencia y fuente
+- [x] Vincular resultados de investigación y citas a Asuntos y documentos
+- [x] Restringir la búsqueda a versiones aprobadas actuales y mostrar extractos con URL y fecha de corte
+- [x] Persistir referencias de investigación añadidas a un Asunto y evitar duplicar citas por documento
+- [x] Mostrar en el detalle del Asunto las fuentes jurídicas de investigación que fueron vinculadas
+- [x] Añadir filtros explícitos por identificador normativo, vigencia y fuente oficial en búsqueda jurídica
+- [x] Validar TypeScript, pruebas, build y experiencia responsive por cada hito

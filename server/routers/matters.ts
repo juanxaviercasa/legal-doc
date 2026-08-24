@@ -117,6 +117,7 @@ export const mattersRouter = router({
   })).mutation(({ ctx, input }) => db.updateMatterProceduralEvent({ ...input, userId: ctx.user.id, eventAt: input.eventAt ? new Date(input.eventAt) : undefined })),
   upcomingProceduralEvents: protectedProcedure.input(z.object({ days: z.number().int().min(1).max(60).default(14) }).optional()).query(({ ctx, input }) => db.getUpcomingProceduralEvents(ctx.user.id, input?.days ?? 14)),
   proceduralCalendar: protectedProcedure.input(z.object({ from: z.string().datetime(), to: z.string().datetime() })).query(({ ctx, input }) => db.getProceduralCalendarEvents(ctx.user.id, new Date(input.from), new Date(input.to))),
+  legalResearch: protectedProcedure.input(z.object({ matterId: z.number().int().positive() })).query(({ ctx, input }) => db.getMatterLegalResearch(input.matterId, ctx.user.id)),
   linkDocument: protectedProcedure.input(z.object({
     matterId: z.number().int().positive(),
     documentId: z.number().int().positive(),

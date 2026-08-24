@@ -24,6 +24,10 @@ vi.mock("./db", () => ({
   updateMatterProceduralEvent: vi.fn(),
   getUpcomingProceduralEvents: vi.fn(),
   getProceduralCalendarEvents: vi.fn(),
+  searchApprovedLegalCorpus: vi.fn(),
+  addMatterLegalResearch: vi.fn(),
+  addResearchCitationToDocument: vi.fn(),
+  getMatterLegalResearch: vi.fn(),
   getApprovedLegalVersions: vi.fn(),
   getDocumentLegalCitations: vi.fn(),
   getLegalSources: vi.fn(),
@@ -132,6 +136,13 @@ describe("matters tRPC procedures", () => {
     expect(result[0].matterTitle).toBe("Caso civil");
     expect(db.getProceduralCalendarEvents).toHaveBeenCalledWith(7, expect.any(Date), expect.any(Date));
   });
+
+  it("devuelve al asunto únicamente las fuentes de investigación que su usuario puede consultar", async () => {
+    vi.mocked(db.getMatterLegalResearch).mockResolvedValue([{ id: 4, matterId: 5, citationLabel: "Código Civil · versión aprobada" }] as any);
+    const result = await appRouter.createCaller(ctx).matters.legalResearch({ matterId: 5 });
+    expect(result[0].citationLabel).toContain("Código Civil");
+    expect(db.getMatterLegalResearch).toHaveBeenCalledWith(5, 7);
+  });
 });
 
 describe("legalCorpus tRPC procedures", () => {
@@ -141,6 +152,29 @@ describe("legalCorpus tRPC procedures", () => {
     const result = await appRouter.createCaller(ctx).legalCorpus.approvedVersions({ jurisdictionId: "pe" });
     expect(result).toEqual(versions);
     expect(db.getApprovedLegalVersions).toHaveBeenCalledWith("pe");
+  });
+
+  it("busca solo resultados aprobados del corpus peruano para un usuario autenticado", async () => {
+    const results = [{ versionId: 8, instrumentTitle: "Código Civil", legalStatus: "vigente", sourceUrl: "https://fuente-oficial.pe/codigo" }];
+    vi.mocked(db.searchApprovedLegalCorpus).mockResolvedValue(results as any);
+    const response = await appRouter.createCaller(ctx).legalCorpus.search({ query: "obligaciones", limit: 10 });
+    expect(response).toEqual(results);
+    expect(db.searchApprovedLegalCorpus).toHaveBeenCalledWith({ query: "obligaciones", limit: 10, jurisdictionId: "pe" });
+  });
+
+  it("transfiere identificador, vigencia y fuente como criterios explícitos de búsqueda", async () => {
+    vi.mocked(db.searchApprovedLegalCorpus).mockResolvedValue([]);
+    await appRouter.createCaller(ctx).legalCorpus.search({ normIdentifier: "Código Civil", legalStatus: "vigente", sourceUrl: "gob.pe", limit: 20 });
+    expect(db.searchApprovedLegalCorpus).toHaveBeenCalledWith({ normIdentifier: "Código Civil", legalStatus: "vigente", sourceUrl: "gob.pe", limit: 20, jurisdictionId: "pe" });
+  });
+
+  it("vincula una referencia aprobada al asunto y al documento bajo la identidad del usuario", async () => {
+    vi.mocked(db.addMatterLegalResearch).mockResolvedValue({ id: 6, matterId: 5, instrumentVersionId: 8 } as any);
+    vi.mocked(db.addResearchCitationToDocument).mockResolvedValue({ id: 7, generatedDocumentId: 3, instrumentVersionId: 8 } as any);
+    await appRouter.createCaller(ctx).legalCorpus.addResearchToMatter({ matterId: 5, versionId: 8, note: "Revisar artículo aplicable" });
+    await appRouter.createCaller(ctx).legalCorpus.addResearchToDocument({ documentId: 3, versionId: 8, articleReference: "Art. 1" });
+    expect(db.addMatterLegalResearch).toHaveBeenCalledWith(expect.objectContaining({ matterId: 5, versionId: 8, userId: 7 }));
+    expect(db.addResearchCitationToDocument).toHaveBeenCalledWith(expect.objectContaining({ documentId: 3, versionId: 8, userId: 7, articleReference: "Art. 1" }));
   });
 
   it("impide que un usuario regular administre fuentes jurídicas", async () => {

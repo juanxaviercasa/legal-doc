@@ -48,11 +48,14 @@ export const appRouter = router({
   matters: mattersRouter,
   legalCorpus: router({
     approvedVersions: publicProcedure.input(z.object({ jurisdictionId: z.string().default("pe") }).optional()).query(({ input }) => db.getApprovedLegalVersions(input?.jurisdictionId ?? "pe")),
+    search: protectedProcedure.input(z.object({ query: z.string().trim().max(500).optional(), subject: z.string().trim().max(255).optional(), normIdentifier: z.string().trim().max(255).optional(), legalStatus: z.enum(["vigente", "modificado"]).optional(), sourceUrl: z.string().trim().max(2048).optional(), limit: z.number().int().min(1).max(50).default(20) }).refine((input) => Boolean(input.query || input.subject || input.normIdentifier || input.legalStatus || input.sourceUrl), { message: "Ingresa al menos un criterio de búsqueda" })).query(({ input }) => db.searchApprovedLegalCorpus({ ...input, jurisdictionId: "pe" })),
     documentCitations: protectedProcedure.input(z.object({ documentId: z.number().int().positive() })).query(async ({ ctx, input }) => {
       const document = await db.getDocumentById(input.documentId, ctx.user.id);
       if (!document) throw new Error("Documento no encontrado");
       return db.getDocumentLegalCitations(input.documentId);
     }),
+    addResearchToMatter: protectedProcedure.input(z.object({ matterId: z.number().int().positive(), versionId: z.number().int().positive(), articleReference: z.string().trim().max(255).optional(), note: z.string().trim().max(10000).optional() })).mutation(({ ctx, input }) => db.addMatterLegalResearch({ ...input, userId: ctx.user.id })),
+    addResearchToDocument: protectedProcedure.input(z.object({ documentId: z.number().int().positive(), versionId: z.number().int().positive(), articleReference: z.string().trim().max(255).optional() })).mutation(({ ctx, input }) => db.addResearchCitationToDocument({ ...input, userId: ctx.user.id })),
     adminSources: adminProcedure.input(z.object({ jurisdictionId: z.string().default("pe") }).optional()).query(({ input }) => db.getLegalSources(input?.jurisdictionId ?? "pe")),
     adminInstruments: adminProcedure.input(z.object({ jurisdictionId: z.string().default("pe") }).optional()).query(({ input }) => db.getLegalInstruments(input?.jurisdictionId ?? "pe")),
     adminVersions: adminProcedure.input(z.object({ instrumentId: z.number().int().positive() })).query(({ input }) => db.getLegalInstrumentVersions(input.instrumentId)),

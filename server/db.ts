@@ -22,6 +22,7 @@ import {
   legalMatters,
   legalSources,
   matterAssignments,
+  matterLegalResearch,
   matterParties,
   matterProceduralEvents,
   matterProceduralProfiles,
@@ -518,6 +519,52 @@ export async function getApprovedLegalVersions(jurisdictionId = "pe") {
   return versions.filter((version) => instrumentIds.has(version.instrumentId));
 }
 
+export type LegalCorpusSearchResult = {
+  instrumentId: number;
+  instrumentTitle: string;
+  normIdentifier: string | null;
+  subject: string | null;
+  versionId: number;
+  versionLabel: string;
+  versionAsOf: Date;
+  legalStatus: "vigente" | "modificado" | "derogado_parcial" | "derogado" | "pendiente_verificacion";
+  sourceUrl: string;
+  excerpt: string;
+  citationLabel: string;
+};
+
+/** Búsqueda conservadora: nunca devuelve borradores, versiones rechazadas o textos derogados. */
+export async function searchApprovedLegalCorpus(input: { jurisdictionId?: string; query?: string; subject?: string; normIdentifier?: string; legalStatus?: "vigente" | "modificado"; sourceUrl?: string; limit?: number }): Promise<LegalCorpusSearchResult[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const jurisdictionId = input.jurisdictionId ?? "pe";
+  const query = (input.query ?? "").trim().toLocaleLowerCase("es-PE");
+  const subject = (input.subject ?? "").trim().toLocaleLowerCase("es-PE");
+  const normIdentifier = (input.normIdentifier ?? "").trim().toLocaleLowerCase("es-PE");
+  const sourceUrl = (input.sourceUrl ?? "").trim().toLocaleLowerCase("es-PE");
+  const limit = Math.min(Math.max(input.limit ?? 20, 1), 50);
+  const instruments = await db.select().from(legalInstruments).where(and(eq(legalInstruments.jurisdictionId, jurisdictionId), eq(legalInstruments.status, "active")));
+  const instrumentMap = new Map(instruments.map((instrument) => [instrument.id, instrument]));
+  const approved = await db.select().from(legalInstrumentVersions).where(eq(legalInstrumentVersions.approvalStatus, "approved"));
+  const current = selectCurrentApprovedVersions(approved.filter((version) => instrumentMap.has(version.instrumentId) && (version.legalStatus === "vigente" || version.legalStatus === "modificado")));
+  return current.flatMap((version) => {
+    const instrument = instrumentMap.get(version.instrumentId)!;
+    const searchable = `${instrument.title} ${instrument.normIdentifier ?? ""} ${instrument.subject ?? ""} ${instrument.documentType} ${version.contentMarkdown}`.toLocaleLowerCase("es-PE");
+    if (
+      (query && !searchable.includes(query))
+      || (subject && !`${instrument.subject ?? ""} ${instrument.title}`.toLocaleLowerCase("es-PE").includes(subject))
+      || (normIdentifier && !(instrument.normIdentifier ?? "").toLocaleLowerCase("es-PE").includes(normIdentifier))
+      || (input.legalStatus && version.legalStatus !== input.legalStatus)
+      || (sourceUrl && !version.sourceUrl.toLocaleLowerCase("es-PE").includes(sourceUrl))
+    ) return [];
+    const content = version.contentMarkdown.replace(/\s+/g, " ").trim();
+    const position = query ? content.toLocaleLowerCase("es-PE").indexOf(query) : 0;
+    const start = Math.max(0, position - 180);
+    const excerpt = `${start > 0 ? "…" : ""}${content.slice(start, start + 700)}${content.length > start + 700 ? "…" : ""}`;
+    return [{ instrumentId: instrument.id, instrumentTitle: instrument.title, normIdentifier: instrument.normIdentifier, subject: instrument.subject, versionId: version.id, versionLabel: version.versionLabel, versionAsOf: version.versionAsOf, legalStatus: version.legalStatus, sourceUrl: version.sourceUrl, excerpt, citationLabel: `${instrument.title}${instrument.normIdentifier ? ` (${instrument.normIdentifier})` : ""} · ${version.versionLabel}` }];
+  }).slice(0, limit);
+}
+
 export type ApprovedLegalReference = {
   instrumentId: number;
   instrumentTitle: string;
@@ -607,6 +654,46 @@ export async function getDocumentLegalCitations(generatedDocumentId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(legalCitations).where(eq(legalCitations.generatedDocumentId, generatedDocumentId)).orderBy(desc(legalCitations.createdAt));
+}
+
+export async function getMatterLegalResearch(matterId: number, userId: number) {
+  const db = await getDb();
+  if (!db || !(await getMatterAccess(matterId, userId))) return [];
+  return db.select().from(matterLegalResearch).where(eq(matterLegalResearch.matterId, matterId)).orderBy(desc(matterLegalResearch.createdAt));
+}
+
+async function getApprovedCurrentVersionForResearch(versionId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const version = (await db.select().from(legalInstrumentVersions).where(and(eq(legalInstrumentVersions.id, versionId), eq(legalInstrumentVersions.approvalStatus, "approved"))).limit(1))[0];
+  if (!version || (version.legalStatus !== "vigente" && version.legalStatus !== "modificado")) throw new Error("La referencia no corresponde a una versión aprobada y vigente del corpus");
+  const instrument = (await db.select().from(legalInstruments).where(and(eq(legalInstruments.id, version.instrumentId), eq(legalInstruments.status, "active"))).limit(1))[0];
+  if (!instrument) throw new Error("El instrumento jurídico no está activo en el corpus");
+  return { version, instrument };
+}
+
+export async function addMatterLegalResearch(input: { matterId: number; versionId: number; userId: number; articleReference?: string | null; note?: string | null }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await ensureMatterEditor(input.matterId, input.userId);
+  const { version, instrument } = await getApprovedCurrentVersionForResearch(input.versionId);
+  const citationLabel = `${instrument.title}${instrument.normIdentifier ? ` (${instrument.normIdentifier})` : ""} · ${version.versionLabel}`;
+  await db.insert(matterLegalResearch).values({ matterId: input.matterId, instrumentVersionId: version.id, citationLabel, sourceUrl: version.sourceUrl, articleReference: input.articleReference ?? null, note: input.note ?? null, addedByUserId: input.userId }).onDuplicateKeyUpdate({ set: { articleReference: input.articleReference ?? null, note: input.note ?? null, addedByUserId: input.userId } });
+  await db.insert(matterTimelineEvents).values({ matterId: input.matterId, createdByUserId: input.userId, eventType: "note", title: `Fuente jurídica vinculada: ${instrument.title}`, content: `Versión ${version.versionLabel} del corpus aprobado.` });
+  return (await db.select().from(matterLegalResearch).where(and(eq(matterLegalResearch.matterId, input.matterId), eq(matterLegalResearch.instrumentVersionId, version.id))).limit(1))[0];
+}
+
+export async function addResearchCitationToDocument(input: { documentId: number; versionId: number; userId: number; articleReference?: string | null }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const document = await getDocumentById(input.documentId, input.userId);
+  if (!document) throw new Error("Documento no encontrado");
+  const { version, instrument } = await getApprovedCurrentVersionForResearch(input.versionId);
+  const existing = (await db.select().from(legalCitations).where(and(eq(legalCitations.generatedDocumentId, input.documentId), eq(legalCitations.instrumentVersionId, version.id))).limit(1))[0];
+  if (existing) return existing;
+  const citationLabel = `${instrument.title}${instrument.normIdentifier ? ` (${instrument.normIdentifier})` : ""} · ${version.versionLabel}`;
+  const result = await db.insert(legalCitations).values({ generatedDocumentId: input.documentId, instrumentVersionId: version.id, articleReference: input.articleReference ?? null, citationLabel, sourceUrl: version.sourceUrl });
+  return (await db.select().from(legalCitations).where(eq(legalCitations.id, Number(result[0].insertId))).limit(1))[0];
 }
 
 export async function getLegalChangeCandidates(sourceId?: number) {

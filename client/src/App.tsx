@@ -14,6 +14,7 @@ import Matters from "./pages/Matters";
 import MatterDetail from "./pages/MatterDetail";
 import ProceduralDesk from "./pages/ProceduralDesk";
 import ProceduralCalendar from "./pages/ProceduralCalendar";
+import LegalResearch from "./pages/LegalResearch";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -27,6 +28,7 @@ function Router() {
       <Route path={"/asuntos/:id"}>{(params) => <MatterDetail matterId={Number(params.id)} />}</Route>
       <Route path={"/mesa-procesal"} component={ProceduralDesk} />
       <Route path={"/mesa-procesal/calendario"} component={ProceduralCalendar} />
+      <Route path={"/investigacion"} component={LegalResearch} />
       <Route path={"/biblioteca-juridica"} component={LegalLibrary} />
       <Route path={"/biblioteca"} component={HistoryOfAdvocacy} />
       <Route path={"/404"} component={NotFound} />
